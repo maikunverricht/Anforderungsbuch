@@ -1207,6 +1207,7 @@ const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => [...(r || document).querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LS_KOPIE = 'wb-anforderungsbuch-data';
+const KOMP = /^(komponente|component|sw-?komponente|sw-?component|modul|module)$/i;
 const IDB_NAME = 'wb-anforderungsbuch';
 
 const WEICH_STANDARD = ['sollte','sollten','ggf.','gegebenenfalls','möglichst','schnell','ausreichend','angemessen','etwa','ca.','circa',
@@ -1258,10 +1259,12 @@ function lesekopie(){
     stand:{ id:st.id, name:st.name, datum:st.importiert }, vorher: vor ? { id:vor.id, name:vor.name } : null,
     anzahl:reqs.length, befunde:bef.anzahl,
     aenderung: d ? { neu:d.n.neu, geaendert:d.n.geaendert, geloescht:d.n.geloescht } : null,
-    reqs: reqs.map(r => { const o = { id:r.id, t:norm(r.text).slice(0, 240) }; const a = ae.get(r.id); if (a && a !== 'gleich') o.chg = a; return o; }),
+    /* c: Komponente, falls der Export sie als Attribut trägt – der TestcaseManager ordnet darüber zu */
+    reqs: reqs.map(r => { const o = { id:r.id, t:norm(r.text).slice(0, 240) }; const a = ae.get(r.id); if (a && a !== 'gleich') o.chg = a;
+      const kk = Object.keys(r.attrs || {}).find(k => KOMP.test(k)); if (kk && norm(r.attrs[kk])) o.c = norm(r.attrs[kk]); return o; }),
     geloescht: d ? d.liste.filter(x => x.art === 'geloescht').map(x => x.id) : [] };
   try { localStorage.setItem(LS_KOPIE, JSON.stringify(kopie)); }
-  catch (e) { kopie.reqs = kopie.reqs.map(r => ({ id:r.id, chg:r.chg })); try { localStorage.setItem(LS_KOPIE, JSON.stringify(kopie)); } catch (e2) {} }
+  catch (e) { kopie.reqs = kopie.reqs.map(r => ({ id:r.id, chg:r.chg, c:r.c })); try { localStorage.setItem(LS_KOPIE, JSON.stringify(kopie)); } catch (e2) {} }
 }
 
 /* ───────── Stände ───────── */
