@@ -1457,7 +1457,8 @@ let S = leer();           // Bestand
 let beispiel = false;     // Schaufenster oder „Beispiel ansehen“
 let sperre = false;       // Tor zu: nichts speichern
 const UI = { reiter:'bestand', filter:new Set(), such:'', vgFilter:'alle', regel:null, max:300, aktuellOffen:null, auftrag:'' };
-try { UI.auftrag = localStorage.getItem('ab-auftrag') || ''; } catch (e) {}
+/* Vorwahl: der aktive Auftrag (im Kontor bzw. Planer gewählt), sonst die letzte eigene Wahl */
+try { const ak = JSON.parse(localStorage.getItem('wb-aktiver-auftrag') || 'null'); UI.auftrag = (ak && ak.id) || localStorage.getItem('ab-auftrag') || ''; } catch (e) {}
 
 function leer(){ return { app:'werkbank-anforderungsbuch', version:1, updated:null, staende:[], aktuell:null, vergleich:{a:null,b:null},
   weich:WEICH_STANDARD.slice(), zuordnungen:{}, auftraege:{} }; }
@@ -2175,7 +2176,10 @@ function binden(){
   $('#auWahl').onchange = e => { UI.auftrag = e.target.value; try { localStorage.setItem('ab-auftrag', UI.auftrag); } catch (x) {} zAuftraege(); };
   $('#auAufteilen').onclick = () => { if (sperre) return; const kp = kpLesen(); const kpA = kp && kp.auftraege.find(a => a.id === UI.auftrag); if (kpA) auL1Bearbeiten(kpA.id, kpA); };
   $('#auCsvBtn').onclick = auCsv;
-  window.addEventListener('storage', e => { if (UI.reiter === 'auftraege' && (!e.key || e.key === LS_KP || e.key === 'wb-schaltplan-data' || e.key === 'wb-aktiver-auftrag')) zAuftraege(); });
+  window.addEventListener('storage', e => {
+    /* Wird im Kontor ein anderes Issue gewählt, zieht das Anforderungsbuch nach */
+    if (e.key === 'wb-aktiver-auftrag') { try { const ak = JSON.parse(e.newValue || 'null'); if (ak && ak.id) { UI.auftrag = ak.id; localStorage.setItem('ab-auftrag', ak.id); } } catch (x) {} }
+    if (UI.reiter === 'auftraege' && (!e.key || e.key === LS_KP || e.key === 'wb-schaltplan-data' || e.key === 'wb-aktiver-auftrag')) zAuftraege(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#schub').classList.contains('auf')) schubZu(); });
   /* Ziehen und Ablegen – auf die ganze Seite */
   const drop = $('#drop');
