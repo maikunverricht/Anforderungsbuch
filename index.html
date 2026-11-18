@@ -479,8 +479,8 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
     <header><h2 id="auDlgTitel"></h2><p id="auDlgEltern"></p></header>
     <div class="dl-in">
       <div class="zuo">
-        <label for="auArt" class="au-nur2">Art</label>
-        <select class="sel au-nur2" id="auArt"><option value="neu">neu</option><option value="betroffen">bestehende – vom Auftrag betroffen</option></select>
+        <label for="auArt">Art</label>
+        <select class="sel" id="auArt"><option value="neu">neu</option><option value="betroffen">bestehende – vom Auftrag betroffen</option></select>
         <label for="auRef" id="auRefLabel">ID <b>*</b></label>
         <span id="auRefZeile"><input class="feld" id="auRef" list="auRefListe" autocomplete="off" spellcheck="false"><datalist id="auRefListe"></datalist></span>
         <label for="auText">Text <b>*</b></label><textarea class="feld au-text" id="auText" rows="4"></textarea>
@@ -2406,7 +2406,7 @@ function auDialog(iid, kpA, r){
   $('#auDlgTitel').textContent = (neu ? 'Neue ' : '') + 'L' + e + ' · ' + EBENE_NAME[e];
   $('#auDlgEltern').textContent = 'unter ' + r.eltern + ' · ' + EBENE_HILFE[e];
   $('#auText').value = r.t || '';
-  /* L2: neu oder bestehende (betroffen) aus dem jüngsten Stand */
+  /* L2–L4: neu oder bestehende (betroffen) aus dem jüngsten Stand */
   $$('.au-nur2').forEach(x => x.hidden = e !== 2);
   $$('.au-nur3').forEach(x => x.hidden = e !== 3);
   $$('.au-nur4').forEach(x => x.hidden = e !== 4);
@@ -2430,7 +2430,7 @@ function auDialog(iid, kpA, r){
   $('#auFnHinweis').textContent = clVon ? 'Funktionen aus Cluster ' + clVon + (q.geaendert.length ? ', geänderte zuerst' : '') : (q.alle.length ? '' : 'Keine Wirkkette aus dem Schaltplan – Name frei eintragen.');
   $('#auLoeschen').hidden = neu;
   $('#auFehler').textContent = '';
-  const artWechsel = () => { const b = $('#auArt').value === 'betroffen'; $('#auRefZeile').hidden = !b || e !== 2; $('#auRefLabel').hidden = !b || e !== 2; };
+  const artWechsel = () => { const b = $('#auArt').value === 'betroffen'; $('#auRefZeile').hidden = !b; $('#auRefLabel').hidden = !b; };
   $('#auArt').onchange = artWechsel; artWechsel();
   $('#auRef').oninput = () => { const x = st && st.reqs.find(y => y.id === $('#auRef').value.trim()); if (x && !$('#auText').value.trim()) $('#auText').value = norm(x.text); };
   $('#auLoeschen').onclick = () => {
@@ -2441,7 +2441,7 @@ function auDialog(iid, kpA, r){
   };
   $('#auDlg').returnValue = '';
   $('#auOk').onclick = ev => {
-    const t = $('#auText').value.trim(), art = e === 2 ? $('#auArt').value : 'neu', ref = $('#auRef').value.trim();
+    const t = $('#auText').value.trim(), art = $('#auArt').value, ref = $('#auRef').value.trim();
     if (!t) { ev.preventDefault(); $('#auFehler').textContent = 'Text fehlt.'; return; }
     if (art === 'betroffen' && !ref) { ev.preventDefault(); $('#auFehler').textContent = 'ID der betroffenen Anforderung fehlt.'; return; }
     let id = r.id;
