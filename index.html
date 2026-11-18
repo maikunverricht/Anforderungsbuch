@@ -2019,10 +2019,20 @@ function zVergleich(){
     el.innerHTML = S.staende.length ? '<div class="leer"><h2>Ein Stand reicht nicht</h2>Lies einen zweiten Export desselben Moduls ein – zum Beispiel die nächste Baseline.<br><button class="btn haupt" type="button" data-imp>Stand einlesen</button></div>' : leerHinweis();
     leerBinden(el); $('#vgFilter').innerHTML = ''; $('#vgHinweis').textContent = ''; $('#vgA').innerHTML = $('#vgB').innerHTML = ''; return;
   }
+  /* Verglichen wird nur innerhalb derselben Ebene (L2, L3, L4 oder ganzes Modul) */
   let A = standVon(S.vergleich.a), B = standVon(S.vergleich.b);
-  if (!B) B = aktStand(); if (!A || A === B) A = vorStand(B) || S.staende.find(s => s !== B);
-  const opt = sel => S.staende.map(s => `<option value="${s.id}"${s === sel ? ' selected' : ''}>${esc(lvName(s) + s.name)}</option>`).join('');
-  $('#vgA').innerHTML = opt(A); $('#vgB').innerHTML = opt(B);
+  if (!B) B = aktStand();
+  const gleich = s => (s.lv || 0) === (B.lv || 0);
+  if (!A || A === B || !gleich(A)) A = vorStand(B) || S.staende.find(s => s !== B && gleich(s)) || null;
+  const opt = (liste, sel) => liste.map(s => `<option value="${s.id}"${s === sel ? ' selected' : ''}>${esc(lvName(s) + s.name)}</option>`).join('');
+  $('#vgB').innerHTML = opt(S.staende, B);
+  $('#vgA').innerHTML = A ? opt(S.staende.filter(s => s !== B && gleich(s)), A) : '<option>– kein Stand dieser Ebene –</option>';
+  $('#vgA').disabled = !A;
+  if (!A){
+    const eb = B.lv ? 'L' + B.lv : 'ganzes Modul';
+    el.innerHTML = `<div class="leer"><h2>Kein zweiter Stand der Ebene ${eb}</h2>Verglichen wird nur innerhalb derselben Ebene. Lies einen älteren oder neueren ${eb}-Stand ein oder wähle oben einen anderen Stand.<br><button class="btn haupt" type="button" data-imp>Stand einlesen</button></div>`;
+    leerBinden(el); $('#vgFilter').innerHTML = ''; $('#vgHinweis').textContent = ''; return;
+  }
   const d = vergleiche(A, B);
   const fl = [['alle','Alle Änderungen', d.n.neu + d.n.geaendert + d.n.geloescht], ['neu','Neu', d.n.neu], ['geaendert','Geändert', d.n.geaendert], ['geloescht','Gelöscht', d.n.geloescht], ['gleich','Unverändert', d.n.gleich]];
   $('#vgFilter').innerHTML = fl.map(([k, t, n]) => `<button type="button" class="chip${UI.vgFilter === k ? ' an' : ''}" data-vf="${k}">${t} <i>${n}</i></button>`).join('');
@@ -2204,7 +2214,9 @@ function binden(){
   $$('#reiter button').forEach(b => b.onclick = () => reiter(b.dataset.r));
   $('#such').oninput = e => { UI.such = e.target.value.trim(); UI.max = 300; zBestand(); };
   $$('#v-bestand .chip').forEach(c => c.onclick = () => { const f = c.dataset.f; UI.filter.has(f) ? UI.filter.delete(f) : UI.filter.add(f); UI.max = 300; zBestand(); });
-  $('#vgA').onchange = $('#vgB').onchange = () => { S.vergleich = { a:$('#vgA').value, b:$('#vgB').value }; UI.max = 300; zVergleich(); speichern(); };
+  $('#vgA').onchange = () => { S.vergleich = { a:$('#vgA').value, b:$('#vgB').value }; UI.max = 300; zVergleich(); speichern(); };
+  /* anderer B-Stand: A passend zur Ebene neu wählen */
+  $('#vgB').onchange = () => { const B = standVon($('#vgB').value), v = B && vorStand(B); S.vergleich = { a:v ? v.id : null, b:$('#vgB').value }; UI.max = 300; zVergleich(); speichern(); };
   $('#csvBtn').onclick = csvAenderungen;
   $('#weichSpeichern').onclick = () => { if (sperre) return; S.weich = $('#weichFeld').value.split('\n').map(x => x.trim()).filter(Boolean); speichern(); zeichnen(); toast('Weiche Wörter übernommen'); };
   $('#weichStandard').onclick = () => { if (sperre) return; S.weich = WEICH_STANDARD.slice(); speichern(); zeichnen(); };
