@@ -325,6 +325,35 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
 #auVerweis:empty{display:none}
 .akt-l select[data-lv]{width:auto;min-width:0;padding-right:28px}
 
+/* Interfaces */
+.au-abs{margin-top:-4px}
+#auListe.abs-system .au-rq.e3,#auListe.abs-system .au-rq.e4,#auListe.abs-system [data-au-neu="3"]{display:none}
+#auListe.abs-software .au-rq.e1,#auListe.abs-software .au-rq.e2{opacity:.6}
+#auListe.abs-software [data-au-neu="2"],#auListe.abs-software [data-au-l1f],#auListe.abs-software .au-quelle{display:none}
+.if-gruppe{margin:18px 0 8px;font:600 11px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--text-3)}
+.if-karte{border:1px solid var(--line);background:var(--glass);border-radius:16px;padding:12px 14px;margin-bottom:8px;display:grid;gap:8px}
+.if-karte.betr{border-color:var(--amber)}
+.if-kopf{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.if-kopf .id{font:600 12px/1.4 var(--mono);color:var(--amber)}
+.if-kopf b{font-size:15px}
+.if-kopf .btn{margin-left:auto}
+.if-dat{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 14px;font-size:12.5px}
+.if-dat div span{display:block;font:500 10.5px/1.4 var(--mono);color:var(--text-3);text-transform:uppercase;letter-spacing:.08em}
+.if-chips{display:flex;flex-wrap:wrap;gap:5px}
+.if-chips .tag{font-family:var(--mono)}
+.if-chips .tag.weg{border-color:var(--red,#E8697D);color:var(--red,#E8697D)}
+.if-req{font-size:12.5px;color:var(--text-2)}
+.if-offen{border:1px dashed var(--line-hi);border-radius:16px;padding:10px 14px;margin:6px 0 4px;display:grid;gap:8px;font-size:13px}
+.if-offen .zeile{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.if-sig{display:flex;flex-wrap:wrap;gap:4px 12px;max-height:190px;overflow:auto;padding:6px 0;font:12px/1.5 var(--mono)}
+.if-sig label{display:flex;gap:5px;align-items:center;cursor:pointer}
+.if-sig label i{font-style:normal;color:var(--text-3);font-size:10.5px}
+.if-sig .leer{color:var(--text-3);font-family:inherit}
+.if-gr{grid-column:1/-1;font:600 10.5px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-top:6px}
+.if-zwei{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.if-drei{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+#ifDlg .dl-in{max-height:70vh;overflow:auto}
+
 </style>
 </head>
 <body>
@@ -367,6 +396,7 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
   <nav class="reiter" id="reiter" aria-label="Ansichten">
     <button type="button" data-r="bestand" class="an">Bestand</button>
     <button type="button" data-r="auftraege">Aufträge</button>
+    <button type="button" data-r="interfaces">Interfaces</button>
     <button type="button" data-r="vergleich">Vergleich</button>
     <button type="button" data-r="pruefung">Prüfung</button>
     <button type="button" data-r="staende">Stände</button>
@@ -390,9 +420,29 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
       <span style="flex:1"></span>
       <button type="button" class="btn klein" id="auCsvBtn">Anforderungen des Auftrags (CSV)</button>
     </div>
+    <div class="leiste au-abs" role="group" aria-label="Abschnitt">
+      <button type="button" class="chip an" data-abs="alle">Alle Ebenen</button>
+      <button type="button" class="chip" data-abs="system">Teil 1 · System (L1, L2)</button>
+      <button type="button" class="chip" data-abs="software">Teil 2 · Cluster und Funktion (L3, L4)</button>
+      <span class="hinweis" id="auAbsHinweis"></span>
+    </div>
     <div id="auKopf"></div>
     <div class="liste" id="auListe"></div>
     <p class="hinweis" style="margin-top:12px"><b>L1</b> Kundenanforderung – Freitext des Issues aus dem KapazitätenPlaner, hier als Anforderung formuliert. <b>L2</b> Systemanforderung – übergeordnete Wirkkette im Steuergerät, neu oder eine bestehende, die der Auftrag betrifft; zielt auf das BC-Release. <b>L3</b> Wirkkette je SW-Cluster; zielt auf das FC-Release. <b>L4</b> Anforderung an die einzelne Funktion. Cluster und Funktionen schlägt der Schaltplan vor, geänderte Funktionen der Funktionsentwurf.</p>
+  </section>
+
+  <section class="ansicht" id="v-interfaces" aria-label="Interfaces">
+    <div class="leiste">
+      <button type="button" class="chip an" data-iff="alle">Alle</button>
+      <button type="button" class="chip" data-iff="system">Systemgrenze</button>
+      <button type="button" class="chip" data-iff="cluster">Clustergrenzen</button>
+      <span style="flex:1"></span>
+      <span class="hinweis" id="ifQuelle"></span>
+      <button type="button" class="btn klein haupt" id="ifNeu" data-schreib>+ Interface</button>
+    </div>
+    <div id="ifOffen"></div>
+    <div class="liste" id="ifListe"></div>
+    <p class="hinweis" style="margin-top:12px"><b>SystemInterface</b> – Gruppe von Eingängen oder Ausgängen mit gleichen systemischen Anforderungen und physikalischem Zusammenhang, an der Systemgrenze (Steuergerät) oder an einer Clustergrenze. Physik, Zeit- und Fehlerverhalten stehen als Datenblatt am Interface; was das System damit tut, ist eine L2 (Systemgrenze) bzw. L3 (Clustergrenze), die auf das Interface verweist. Die Signale kommen aus der Wirkkettenanalyse im Schaltplan.</p>
   </section>
 
   <section class="ansicht" id="v-vergleich" aria-label="Vergleich">
@@ -493,6 +543,8 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
         <span class="au-nur3"><input class="feld" id="auCl" list="auClListe" autocomplete="off" spellcheck="false"><datalist id="auClListe"></datalist></span>
         <label for="auFn" class="au-nur4">Funktion</label>
         <span class="au-nur4"><input class="feld" id="auFn" list="auFnListe" autocomplete="off" spellcheck="false"><datalist id="auFnListe"></datalist><span class="hinweis" id="auFnHinweis"></span></span>
+        <label for="auIfs" class="au-if">Interfaces</label>
+        <span class="au-if"><input class="feld" id="auIfs" list="auIfListe" autocomplete="off" spellcheck="false" placeholder="z. B. IF-001, IF-004"><datalist id="auIfListe"></datalist><span class="hinweis" id="auIfHinweis"></span></span>
         <span></span><span class="hinweis" id="auVerweis"></span>
         <span id="auKinderL"></span><label class="au-mitnehmen" id="auKinderZeile" hidden><input type="checkbox" id="auKinder" checked> <span id="auKinderText"></span></label>
       </div>
@@ -503,6 +555,44 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
       <span style="flex:1"></span>
       <button class="btn" value="abbr" type="submit" formnovalidate>Abbrechen</button>
       <button class="btn haupt" id="auOk" value="ok" type="submit">Übernehmen</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="dlg" id="ifDlg">
+  <form method="dialog">
+    <header><h2 id="ifDlgTitel">Interface</h2><p>Signale gleicher Physik und gleicher systemischer Anforderungen</p></header>
+    <div class="dl-in">
+      <div class="zuo">
+        <label for="ifName">Name <b>*</b></label><input class="feld" id="ifName" autocomplete="off" placeholder="z. B. Abgastemperaturen Strang">
+        <label for="ifEbene">Grenze</label>
+        <span class="if-zwei"><select class="sel" id="ifEbene"><option value="system">Systemgrenze (Steuergerät)</option><option value="cluster">Clustergrenze</option></select>
+          <select class="sel" id="ifRichtung"><option value="ein">Eingänge</option><option value="aus">Ausgänge</option></select></span>
+        <label for="ifCluster" class="if-cl">Cluster</label>
+        <span class="if-cl if-zwei"><select class="sel" id="ifCluster"></select><span class="hinweis" id="ifClHinweis"></span></span>
+        <label>Signale <b>*</b></label>
+        <div><div class="if-sig" id="ifSignale"></div><input class="feld" id="ifSigFrei" autocomplete="off" spellcheck="false" placeholder="weiteres Signal von Hand (Komma getrennt)"></div>
+        <span class="if-gr">Physikalische Größe</span>
+        <label for="ifGroesse">Größe · Einheit</label><span class="if-zwei"><input class="feld" id="ifGroesse" placeholder="Temperatur"><input class="feld" id="ifEinheit" placeholder="°C"></span>
+        <label for="ifMin">Bereich · Auflösung</label><span class="if-drei"><input class="feld" id="ifMin" placeholder="min"><input class="feld" id="ifMax" placeholder="max"><input class="feld" id="ifAufl" placeholder="Auflösung"></span>
+        <span class="if-gr">Zeitverhalten</span>
+        <label for="ifRaster">Raster · Latenz</label><span class="if-zwei"><input class="feld" id="ifRaster" placeholder="Raster, z. B. 10 ms"><input class="feld" id="ifLatenz" placeholder="max. Latenz, z. B. 20 ms"></span>
+        <span class="if-gr">Fehlerverhalten</span>
+        <label for="ifGueltig">Gültigkeit</label><input class="feld" id="ifGueltig" placeholder="z. B. Statusbit, Plausibilisierung">
+        <label for="ifErsatz">Ersatzwert</label><input class="feld" id="ifErsatz" placeholder="z. B. letzter gültiger Wert, Default">
+        <label for="ifDiagnose">Diagnose</label><input class="feld" id="ifDiagnose" placeholder="z. B. DFC, Entprellzeit">
+        <span class="if-gr">Quelle und Senke</span>
+        <label for="ifQuelleF">Quelle</label><input class="feld" id="ifQuelleF" placeholder="Sensor, Bus oder Komponente">
+        <label for="ifSenke">Senke</label><input class="feld" id="ifSenke" placeholder="Aktor, Bus oder Komponente">
+        <label for="ifNotiz">Notiz</label><textarea class="feld" id="ifNotiz" rows="2"></textarea>
+      </div>
+      <p class="fehler" id="ifFehler"></p>
+    </div>
+    <footer>
+      <button class="btn rot" id="ifLoeschen" type="button">Löschen</button>
+      <span style="flex:1"></span>
+      <button class="btn" value="abbr" type="submit" formnovalidate>Abbrechen</button>
+      <button class="btn haupt" id="ifOk" value="ok" type="submit">Übernehmen</button>
     </footer>
   </form>
 </dialog>
@@ -1482,12 +1572,12 @@ const META = /^(last modified( on| by)?|modified (on|by)|created( on| by| thru)?
 let S = leer();           // Bestand
 let beispiel = false;     // Schaufenster oder „Beispiel ansehen“
 let sperre = false;       // Tor zu: nichts speichern
-const UI = { reiter:'bestand', filter:new Set(), such:'', vgFilter:'alle', regel:null, max:300, aktuellOffen:null, auftrag:'' };
+const UI = { reiter:'bestand', filter:new Set(), such:'', vgFilter:'alle', regel:null, max:300, aktuellOffen:null, auftrag:'', abschnitt:'alle', ifFilter:'alle' };
 /* Vorwahl: der aktive Auftrag (im Kontor bzw. Planer gewählt), sonst die letzte eigene Wahl */
 try { const ak = JSON.parse(localStorage.getItem('wb-aktiver-auftrag') || 'null'); UI.auftrag = (ak && ak.id) || localStorage.getItem('ab-auftrag') || ''; } catch (e) {}
 
 function leer(){ return { app:'werkbank-anforderungsbuch', version:1, updated:null, staende:[], aktuell:null, vergleich:{a:null,b:null},
-  weich:WEICH_STANDARD.slice(), zuordnungen:{}, auftraege:{} }; }
+  weich:WEICH_STANDARD.slice(), zuordnungen:{}, auftraege:{}, interfaces:[] }; }
 const uid = () => Math.random().toString(36).slice(2, 10);
 const norm = s => String(s ?? '').replace(/\s+/g, ' ').trim();
 const fmtDatum = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); };
@@ -1512,7 +1602,7 @@ async function speichern(){
 function lesekopie(){
   /* Immer der jüngste Stand – nicht der gerade angezeigte */
   const st = S.staende[S.staende.length - 1] || null, au = auLesekopie();
-  if (!st && !Object.keys(au).length) { try { localStorage.removeItem(LS_KOPIE); } catch (e) {} return; }
+  if (!st && !Object.keys(au).length && !(S.interfaces || []).length) { try { localStorage.removeItem(LS_KOPIE); } catch (e) {} return; }
   const vor = st ? vorStand(st) : null, d = vor ? vergleiche(vor, st) : null;
   const ae = new Map(); if (d) d.liste.forEach(x => ae.set(x.id, x.art));
   const reqs = st ? st.reqs.filter(r => r.typ === 'req') : [];
@@ -1528,6 +1618,8 @@ function lesekopie(){
   /* Aufträge: L2–L4 je Auftrag. Neue Anforderungen kommen in reqs dazu, betroffene
      bestehende tragen den Auftrag unter auf – so findet der TestcaseManager beide. */
   kopie.auftraege = au;
+  /* SystemInterfaces: Datenblatt je Gruppe, für TestcaseManager und Kontor */
+  kopie.interfaces = (S.interfaces || []).map(f => Object.assign({}, f));
   Object.keys(au).forEach(iid => au[iid].reqs.forEach(r => {
     const v = kopie.reqs.find(x => x.id === r.id);
     if (v) { (v.auf || (v.auf = [])).includes(iid) || v.auf.push(iid); v.ebene = v.ebene || r.ebene; if (r.release) v.release = r.release; if (r.cl) v.cl = r.cl; }
@@ -1932,7 +2024,7 @@ function zeichnen(){
     : '<option>Noch kein Stand</option>';
   $('#standWahl').disabled = !S.staende.length;
   kennzahlen(); reiterZahlen();
-  ({ bestand:zBestand, auftraege:zAuftraege, vergleich:zVergleich, pruefung:zPruefung, staende:zStaende })[UI.reiter]();
+  ({ bestand:zBestand, auftraege:zAuftraege, interfaces:zInterfaces, vergleich:zVergleich, pruefung:zPruefung, staende:zStaende })[UI.reiter]();
 }
 function kennzahlen(){
   const st = aktStand(); const el = $('#kz');
@@ -1950,6 +2042,7 @@ function reiterZahlen(){
   const st = aktStand(); const b = st ? befunde(st).anzahl : 0;
   $('#reiter [data-r="pruefung"]').innerHTML = 'Prüfung' + (b ? `<i>${b}</i>` : '');
   $('#reiter [data-r="staende"]').innerHTML = 'Stände' + (S.staende.length ? `<i>${S.staende.length}</i>` : '');
+  $('#reiter [data-r="interfaces"]').innerHTML = 'Interfaces' + ((S.interfaces || []).length ? `<i>${S.interfaces.length}</i>` : '');
 }
 function reiter(r){
   UI.reiter = r; UI.max = 300;
@@ -2212,6 +2305,11 @@ function binden(){
   $('#datei').onchange = e => { const f = e.target.files[0]; if (f) dateiEinlesen(f); };
   $('#standWahl').onchange = e => { S.aktuell = e.target.value; UI.max = 300; speichern(); zeichnen(); };
   $$('#reiter button').forEach(b => b.onclick = () => reiter(b.dataset.r));
+  /* Abschnitte im Reiter Aufträge und Filter im Reiter Interfaces */
+  $$('[data-abs]').forEach(b => b.onclick = () => { UI.abschnitt = b.dataset.abs; zAuftraege(); });
+  $$('[data-iff]').forEach(b => b.onclick = () => { UI.ifFilter = b.dataset.iff; zInterfaces(); });
+  $('#ifNeu').onclick = () => { if (!sperre) ifDialog(null); };
+  window.addEventListener('hashchange', hashFolgen);
   $('#such').oninput = e => { UI.such = e.target.value.trim(); UI.max = 300; zBestand(); };
   $$('#v-bestand .chip').forEach(c => c.onclick = () => { const f = c.dataset.f; UI.filter.has(f) ? UI.filter.delete(f) : UI.filter.add(f); UI.max = 300; zBestand(); });
   $('#vgA').onchange = () => { S.vergleich = { a:$('#vgA').value, b:$('#vgB').value }; UI.max = 300; zVergleich(); speichern(); };
@@ -2228,7 +2326,8 @@ function binden(){
   window.addEventListener('storage', e => {
     /* Wird im Kontor ein anderes Issue gewählt, zieht das Anforderungsbuch nach */
     if (e.key === 'wb-aktiver-auftrag') { try { const ak = JSON.parse(e.newValue || 'null'); if (ak && ak.id) { UI.auftrag = ak.id; localStorage.setItem('ab-auftrag', ak.id); } } catch (x) {} }
-    if (UI.reiter === 'auftraege' && (!e.key || e.key === LS_KP || e.key === 'wb-schaltplan-data' || e.key === 'wb-aktiver-auftrag')) zAuftraege(); });
+    if (UI.reiter === 'auftraege' && (!e.key || e.key === LS_KP || e.key === 'wb-schaltplan-data' || e.key === 'wb-aktiver-auftrag')) zAuftraege();
+    if (UI.reiter === 'interfaces' && (!e.key || e.key === 'wb-schaltplan-data' || e.key === LS_KP || e.key === 'wb-aktiver-auftrag')) zInterfaces(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#schub').classList.contains('auf')) schubZu(); });
   /* Ziehen und Ablegen – auf die ganze Seite */
   const drop = $('#drop');
@@ -2357,6 +2456,7 @@ function zAuftraege(){
     if (r.release) tags.push(`<span class="tag" title="Ablieferprodukt">→ ${esc(r.release)}</span>`);
     if (r.cl) tags.push(`<span class="tag" title="SW-Cluster">${esc(r.cl)}</span>`);
     if (r.fn) tags.push(`<span class="tag" title="Funktion">${esc(r.fn)}()</span>`);
+    (r.ifs || []).forEach(i => { const f = ifVon(i); tags.push(`<span class="tag ifv${f ? '' : ' befund'}" title="${esc(f ? f.name : 'Interface nicht (mehr) vorhanden')}">⇄ ${esc(i)}</span>`); });
     const nach = r.ebene < 4 ? `<button type="button" class="btn klein" data-au-neu="${r.ebene + 1}" data-au-el="${esc(r.id)}" data-schreib>+ L${r.ebene + 1}</button>` : '';
     return `<div class="au-rq e${r.ebene}" data-au-id="${esc(r.id)}">
       <span class="au-eb">L${r.ebene}</span><span class="id">${esc(r.id)}</span>
@@ -2376,6 +2476,12 @@ function zAuftraege(){
       (verwaist.length ? `<div class="au-l1"><p class="hinweis">Ohne gültige Eltern (L1 neu aufgeteilt?):</p>${verwaist.map(zeile).join('')}</div>` : '')
     : `<div class="leer"><h2>Keine L1</h2>Das Issue bringt keine Beschreibung mit. Erwartet wird die Spalte „Description Issue“ oder „Beschreibung Issue“ in der Austausch-Excel.<br>
        <button class="btn" type="button" data-au-l1 data-schreib>L1 von Hand anlegen</button></div>`;
+  /* Abschnitt: Teil 1 vor der Wirkkettenanalyse (L1, L2), Teil 2 danach (L3, L4 mit Interfaces) */
+  el.classList.toggle('abs-system', UI.abschnitt === 'system'); el.classList.toggle('abs-software', UI.abschnitt === 'software');
+  $$('[data-abs]').forEach(b => b.classList.toggle('an', b.dataset.abs === UI.abschnitt));
+  const nIf = (S.interfaces || []).length;
+  $('#auAbsHinweis').innerHTML = UI.abschnitt === 'system' ? 'vor der Wirkkettenanalyse im Schaltplan'
+    : UI.abschnitt === 'software' ? `nach der Wirkkettenanalyse · <a href="#interfaces/cluster">${nIf ? nIf + ' Interfaces' : 'Interfaces festlegen'}</a>` : '';
   $$('[data-au-neu]', el).forEach(b => b.onclick = () => auDialog(iid, kpA, { ebene:+b.dataset.auNeu, eltern:b.dataset.auEl }));
   $$('[data-au-edit]', el).forEach(b => b.onclick = () => auDialog(iid, kpA, a.reqs.find(r => r.id === b.dataset.auEdit)));
   const l1b = $('[data-au-l1]', el); if (l1b) l1b.onclick = () => auL1Bearbeiten(iid, kpA);
@@ -2439,6 +2545,15 @@ function auDialog(iid, kpA, r){
   $$('.au-nur2').forEach(x => x.hidden = e !== 2);
   $$('.au-nur3').forEach(x => x.hidden = e !== 3);
   $$('.au-nur4').forEach(x => x.hidden = e !== 4);
+  /* Option C: Verhalten als L2/L3, Datenblatt am Interface – L2 verweist auf Interfaces der Systemgrenze, L3 auf die der Clustergrenze */
+  $$('.au-if').forEach(x => x.hidden = e !== 2 && e !== 3);
+  const ifPassend = (S.interfaces || []).filter(f => e === 2 ? f.ebene === 'system' : true);
+  $('#auIfListe').innerHTML = ifPassend.map(f => `<option value="${esc(f.id)}">${esc(f.name)} · ${f.ebene === 'system' ? 'System' : 'Cluster ' + esc(f.cluster || '')} · ${f.richtung === 'ein' ? 'Eingänge' : 'Ausgänge'}</option>`).join('');
+  $('#auIfs').value = (r.ifs || []).join(', ');
+  const ifHinweis = () => { const ids = ifListe($('#auIfs').value), unb = ids.filter(i => !ifVon(i));
+    $('#auIfHinweis').textContent = !ifPassend.length ? (e === 2 ? 'noch keine Interfaces an der Systemgrenze' : 'noch keine Interfaces') :
+      unb.length ? 'unbekannt: ' + unb.join(', ') : ids.map(i => ifVon(i).name).join(' · '); };
+  $('#auIfs').oninput = ifHinweis; ifHinweis();
   $('#auArt').value = r.art || 'neu';
   $('#auRef').value = r.art === 'betroffen' ? r.id : '';
   $('#auRefListe').innerHTML = st ? st.reqs.filter(x => x.typ === 'req').slice(0, 3000).map(x => `<option value="${esc(x.id)}">${esc(norm(x.text).slice(0, 90))}</option>`).join('') : '';
@@ -2502,6 +2617,7 @@ function auDialog(iid, kpA, r){
     const o = { id, ebene:e, eltern:el || r.eltern, t, art };
     const relv = $('#auRelease').value; if (relv && e <= 3) o.release = relv;
     if (e === 3 && $('#auCl').value.trim()) o.cl = $('#auCl').value.trim();
+    if (e === 2 || e === 3) { const ifs = ifListe($('#auIfs').value); if (ifs.length) o.ifs = ifs; }
     if (e === 4) { if ($('#auFn').value.trim()) o.fn = $('#auFn').value.trim().replace(/\(\)$/, ''); if (elt && elt.cl) o.cl = elt.cl; }
     if (neu) a.reqs.push(o);
     else { const i = a.reqs.indexOf(r); a.reqs[i] = o; if (o.id !== r.id) a.reqs.forEach(x => { if (x.eltern === r.id) x.eltern = o.id; }); }
@@ -2529,10 +2645,10 @@ function auCsv(){
   const kp = kpLesen(); const iid = UI.auftrag; if (!iid) return;
   const kpA = kp && kp.auftraege.find(a => a.id === iid); const a = auAuftrag(iid) || { reqs:[] };
   const q = s => '"' + String(s ?? '').replace(/"/g, '""') + '"';
-  const zeilen = [['ID','Ebene','Text','Eltern','Art','Release','Cluster','Funktion','Auftrag','Kunde (Freitext)'].map(q).join(';')];
-  auL1(iid, kpA).forEach(x => zeilen.push([x.id, 'L1', x.t, '', 'Kunde', '', '', '', iid, x.quelle].map(q).join(';')));
+  const zeilen = [['ID','Ebene','Text','Eltern','Art','Release','Cluster','Funktion','Interfaces','Auftrag','Kunde (Freitext)'].map(q).join(';')];
+  auL1(iid, kpA).forEach(x => zeilen.push([x.id, 'L1', x.t, '', 'Kunde', '', '', '', '', iid, x.quelle].map(q).join(';')));
   a.reqs.slice().sort((x, y) => x.ebene - y.ebene || x.id.localeCompare(y.id))
-    .forEach(r => zeilen.push([r.id, 'L' + r.ebene, r.t, r.eltern, r.art, r.release, r.cl, r.fn, iid, ''].map(q).join(';')));
+    .forEach(r => zeilen.push([r.id, 'L' + r.ebene, r.t, r.eltern, r.art, r.release, r.cl, r.fn, (r.ifs || []).join(', '), iid, ''].map(q).join(';')));
   const name = 'anforderungen_' + iid + '.csv', inhalt = '﻿' + zeilen.join('\r\n');
   /* Mit Auftragsordner: nach 01_Anforderungen, sonst herunterladen */
   if (window.WBAblage && WBAblage.ordnerVon(iid)) {
@@ -2552,9 +2668,149 @@ function auLesekopie(){
     if (!a.reqs.length && !(a.l1 && a.l1.length)) return;
     out[iid] = { l1:l1.map(x => ({ id:x.id, t:norm(x.t || x.quelle).slice(0, 240), formuliert:!auL1Befund(x) })),
       reqs:a.reqs.map(r => { const o = { id:r.id, ebene:r.ebene, eltern:r.eltern, t:norm(r.t).slice(0, 240), art:r.art };
-        if (r.release) o.release = r.release; if (r.cl) o.cl = r.cl; if (r.fn) o.fn = r.fn; return o; }) };
+        if (r.release) o.release = r.release; if (r.cl) o.cl = r.cl; if (r.fn) o.fn = r.fn; if (r.ifs && r.ifs.length) o.ifs = r.ifs; return o; }) };
   });
   return out;
+}
+
+/* ───────── SystemInterfaces ─────────
+   Gruppen von Eingängen bzw. Ausgängen gleicher Physik und gleicher systemischer Anforderungen,
+   an der Systemgrenze (Steuergerät) oder an einer Clustergrenze. Signale aus der Wirkkette des Schaltplans. */
+const ifVon = id => (S.interfaces || []).find(f => f.id === id);
+const ifListe = t => [...new Set(String(t || '').split(/[,;\s]+/).map(x => x.trim()).filter(Boolean))];
+function ifNeueId(){ let n = 1; const ids = new Set((S.interfaces || []).map(f => f.id)); while (ids.has('IF-' + String(n).padStart(3, '0'))) n++; return 'IF-' + String(n).padStart(3, '0'); }
+/* Signale je Grenze aus der Lesekopie des Schaltplans */
+function ifSignale(){
+  const sp = spLesen(); if (!sp || !sp.comps) return null;
+  const schreib = new Map(), les = new Map(), clVon = new Map(), cl = new Set();
+  const add = (m, k, n) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(n); };
+  sp.comps.forEach(c => { const k = c.cl || c.n; clVon.set(c.n, k); cl.add(k);
+    (c.procs || []).forEach(p => { (p.W || []).forEach(x => { if (!/\(\)$/.test(x)) add(schreib, x, c.n); }); (p.R || []).forEach(x => { if (!/\(\)$/.test(x)) add(les, x, c.n); }); }); });
+  const alle = new Set([...schreib.keys(), ...les.keys()]);
+  const sys = { ein:[], aus:[] }, clu = new Map();
+  const cg = k => { if (!clu.has(k)) clu.set(k, { ein:[], aus:[] }); return clu.get(k); };
+  alle.forEach(m => {
+    const w = [...(schreib.get(m) || [])], r = [...(les.get(m) || [])];
+    if (!w.length && r.length) sys.ein.push({ m, senke:r });
+    if (w.length && !r.length) sys.aus.push({ m, quelle:w });
+    const wc = new Set(w.map(x => clVon.get(x))), rc = new Set(r.map(x => clVon.get(x)));
+    rc.forEach(k => { const von = [...wc].filter(x => x !== k); if (von.length) cg(k).ein.push({ m, von, quelle:w.filter(x => clVon.get(x) !== k), senke:r.filter(x => clVon.get(x) === k) }); });
+    wc.forEach(k => { const nach = [...rc].filter(x => x !== k); if (nach.length) cg(k).aus.push({ m, nach, quelle:w.filter(x => clVon.get(x) === k), senke:r.filter(x => clVon.get(x) !== k) }); });
+  });
+  const sort = l => l.sort((a, b) => a.m.localeCompare(b.m));
+  sort(sys.ein); sort(sys.aus); clu.forEach(v => { sort(v.ein); sort(v.aus); });
+  return { sys, clu, cluster:[...cl].sort(), alle, stand:sp.updated, quelle:sp.quelle };
+}
+function ifKandidaten(sig, ebene, richtung, cluster){
+  if (!sig) return [];
+  if (ebene === 'system') return sig.sys[richtung] || [];
+  const c = sig.clu.get(cluster); return c ? c[richtung] : [];
+}
+/* Wo wird ein Interface verwendet: Anforderungen aller Aufträge */
+function ifVerwendung(id){
+  const out = [];
+  Object.keys(S.auftraege || {}).forEach(iid => (S.auftraege[iid].reqs || []).forEach(r => { if ((r.ifs || []).includes(id)) out.push({ iid, id:r.id, ebene:r.ebene }); }));
+  return out;
+}
+function zInterfaces(){
+  const sig = ifSignale(), liste = S.interfaces || [], el = $('#ifListe');
+  $$('[data-iff]').forEach(b => b.classList.toggle('an', b.dataset.iff === UI.ifFilter));
+  $('#ifQuelle').textContent = sig ? 'Signale aus dem Schaltplan' + (sig.stand ? ' · ' + fmtDatum(sig.stand) : '') : 'kein Schaltplan-Stand – erst die Wirkkettenanalyse';
+  /* Signale, die noch in keinem Interface stecken */
+  const belegt = new Set(); liste.forEach(f => (f.signale || []).forEach(m => belegt.add(f.ebene + '|' + (f.ebene === 'cluster' ? f.cluster + '|' : '') + f.richtung + '|' + m)));
+  const offen = [];
+  /* Eine Clustergrenze hat zwei Seiten: ein Signal gilt als erfasst, sobald es in einem Cluster-Interface steckt (Eingang beim Empfänger oder Ausgang beim Sender) */
+  const clBelegt = new Set(); liste.filter(f => f.ebene === 'cluster').forEach(f => (f.signale || []).forEach(m => clBelegt.add(m)));
+  if (sig) {
+    if (UI.ifFilter !== 'cluster') ['ein', 'aus'].forEach(ri => { const l = sig.sys[ri].filter(x => !belegt.has('system|' + ri + '|' + x.m)); if (l.length) offen.push({ ebene:'system', richtung:ri, cluster:'', l }); });
+    if (UI.ifFilter !== 'system') sig.clu.forEach((v, k) => ['ein', 'aus'].forEach(ri => { const l = v[ri].filter(x => !clBelegt.has(x.m)); if (l.length) offen.push({ ebene:'cluster', richtung:ri, cluster:k, l }); }));
+  }
+  const grenzName = (eb, ri, k) => (eb === 'system' ? 'Systemgrenze' : 'Cluster ' + k) + ' · ' + (ri === 'ein' ? 'Eingänge' : 'Ausgänge');
+  $('#ifOffen').innerHTML = offen.length ? `<div class="if-offen"><b>Noch ohne Interface</b>${offen.map((o, i) => `<div class="zeile"><span class="tag">${esc(grenzName(o.ebene, o.richtung, o.cluster))}</span>
+      <span class="if-chips">${o.l.slice(0, 12).map(x => `<span class="tag">${esc(x.m)}</span>`).join('')}${o.l.length > 12 ? `<span class="hinweis">+${o.l.length - 12}</span>` : ''}</span>
+      <button type="button" class="btn klein" data-if-aus="${i}" data-schreib>Interface bilden</button></div>`).join('')}</div>` : '';
+  $$('[data-if-aus]').forEach(b => b.onclick = () => { const o = offen[+b.dataset.ifAus]; ifDialog(null, { ebene:o.ebene, richtung:o.richtung, cluster:o.cluster, signale:o.l.map(x => x.m) }); });
+  /* aktiver Auftrag: welche Interfaces er betrifft */
+  const iidA = UI.auftrag, betr = new Set(); ((S.auftraege[iidA] || {}).reqs || []).forEach(r => (r.ifs || []).forEach(i => betr.add(i)));
+  const sichtbar = liste.filter(f => UI.ifFilter === 'alle' || f.ebene === UI.ifFilter);
+  if (!sichtbar.length) { el.innerHTML = `<div class="leer"><h2>Noch keine Interfaces${UI.ifFilter !== 'alle' ? ' an dieser Grenze' : ''}</h2>${sig ? 'Oben „Interface bilden“ übernimmt die Signale einer Grenze; „+ Interface“ legt eines frei an.' : 'Liegt eine Wirkkette aus dem Schaltplan vor, werden die Signale an System- und Clustergrenzen vorgeschlagen. Anlegen geht auch von Hand.'}</div>`; ifSperre(); return; }
+  const gruppen = new Map();
+  sichtbar.slice().sort((a, b) => (a.ebene === b.ebene ? 0 : a.ebene === 'system' ? -1 : 1) || String(a.cluster || '').localeCompare(String(b.cluster || '')) || a.richtung.localeCompare(b.richtung) || a.id.localeCompare(b.id))
+    .forEach(f => { const g = grenzName(f.ebene, f.richtung, f.cluster); if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push(f); });
+  const feld = (t, v) => v ? `<div><span>${t}</span>${esc(v)}</div>` : '';
+  el.innerHTML = [...gruppen].map(([g, fs]) => `<div class="if-gruppe">${esc(g)}</div>` + fs.map(f => {
+    const bereich = f.min || f.max ? (f.min || '…') + ' … ' + (f.max || '…') + (f.einheit ? ' ' + f.einheit : '') : '';
+    const verw = ifVerwendung(f.id);
+    const weg = m => sig && !sig.alle.has(m);
+    return `<div class="if-karte${betr.has(f.id) ? ' betr' : ''}">
+      <div class="if-kopf"><span class="id">${esc(f.id)}</span><b>${esc(f.name)}</b>${betr.has(f.id) ? `<span class="tag geaendert">vom Auftrag ${esc(iidA)} betroffen</span>` : ''}
+        <button type="button" class="btn klein" data-if-edit="${esc(f.id)}" data-schreib>Bearbeiten</button></div>
+      <div class="if-chips">${(f.signale || []).map(m => `<span class="tag${weg(m) ? ' weg' : ''}" title="${weg(m) ? 'nicht mehr in der Wirkkette' : ''}">${esc(m)}</span>`).join('')}</div>
+      <div class="if-dat">${feld('Größe', [f.groesse, f.einheit && !bereich ? f.einheit : ''].filter(Boolean).join(' · '))}${feld('Bereich', bereich)}${feld('Auflösung', f.aufl)}
+        ${feld('Raster', f.raster)}${feld('Latenz', f.latenz)}${feld('Gültigkeit', f.gueltig)}${feld('Ersatzwert', f.ersatz)}${feld('Diagnose', f.diagnose)}
+        ${feld('Quelle', f.quelle)}${feld('Senke', f.senke)}</div>
+      ${f.notiz ? `<div class="if-req">${esc(f.notiz)}</div>` : ''}
+      <div class="if-req">${verw.length ? 'Anforderungen: ' + verw.map(v => `${esc(v.id)} <i>(L${v.ebene}, ${esc(v.iid)})</i>`).join(', ') : `<span class="hinweis">noch keine ${f.ebene === 'system' ? 'L2' : 'L3'} verweist auf dieses Interface</span>`}</div>
+    </div>`; }).join('')).join('');
+  $$('[data-if-edit]', el).forEach(b => b.onclick = () => ifDialog(ifVon(b.dataset.ifEdit)));
+  ifSperre();
+}
+function ifSperre(){ if (sperre) $$('[data-schreib]', $('#v-interfaces')).forEach(b => b.disabled = true); }
+function ifDialog(f, vor){
+  const neu = !f, sig = ifSignale(); f = f || Object.assign({ id:'', name:'', ebene:'system', richtung:'ein', cluster:'', signale:[] }, vor || {});
+  $('#ifDlgTitel').textContent = neu ? 'Neues Interface' : f.id + ' · ' + f.name;
+  $('#ifName').value = f.name || ''; $('#ifEbene').value = f.ebene; $('#ifRichtung').value = f.richtung;
+  [['ifGroesse', 'groesse'], ['ifEinheit', 'einheit'], ['ifMin', 'min'], ['ifMax', 'max'], ['ifAufl', 'aufl'], ['ifRaster', 'raster'], ['ifLatenz', 'latenz'],
+   ['ifGueltig', 'gueltig'], ['ifErsatz', 'ersatz'], ['ifDiagnose', 'diagnose'], ['ifQuelleF', 'quelle'], ['ifSenke', 'senke'], ['ifNotiz', 'notiz']].forEach(([i, k]) => $('#' + i).value = f[k] || '');
+  const clListe = sig ? sig.cluster : [...new Set((S.interfaces || []).map(x => x.cluster).filter(Boolean))];
+  $('#ifCluster').innerHTML = (clListe.length ? clListe : ['']).map(k => `<option value="${esc(k)}">${esc(k || '– kein Cluster bekannt –')}</option>`).join('');
+  if (f.cluster) { if (!clListe.includes(f.cluster)) $('#ifCluster').insertAdjacentHTML('beforeend', `<option>${esc(f.cluster)}</option>`); $('#ifCluster').value = f.cluster; }
+  let gewaehlt = new Set(f.signale || []);
+  const frei = () => ifListe($('#ifSigFrei').value);
+  const sigZeigen = () => {
+    const eb = $('#ifEbene').value, ri = $('#ifRichtung').value, k = $('#ifCluster').value;
+    $$('.if-cl').forEach(x => x.hidden = eb !== 'cluster');
+    const kand = ifKandidaten(sig, eb, ri, k);
+    /* schon in einem anderen Interface derselben Grenze */
+    const anderswo = new Map(); (S.interfaces || []).forEach(x => { if (x.id !== f.id && x.ebene === eb && x.richtung === ri && (eb === 'system' || x.cluster === k)) (x.signale || []).forEach(m => anderswo.set(m, x.id)); });
+    const namen = new Set(kand.map(x => x.m)), extra = [...gewaehlt].filter(m => !namen.has(m));
+    $('#ifClHinweis').textContent = eb === 'cluster' ? (ri === 'ein' ? 'Signale, die der Cluster von anderen Clustern liest' : 'Signale, die der Cluster an andere Cluster gibt') : '';
+    $('#ifSignale').innerHTML = (kand.length || extra.length) ? kand.map(x => { const info = x.von ? 'von ' + x.von.join(', ') : x.nach ? 'an ' + x.nach.join(', ') : x.senke ? '→ ' + x.senke.join(', ') : x.quelle ? '← ' + x.quelle.join(', ') : '';
+        return `<label title="${esc(info)}"><input type="checkbox" value="${esc(x.m)}"${gewaehlt.has(x.m) ? ' checked' : ''}> ${esc(x.m)}${anderswo.has(x.m) ? ` <i>in ${esc(anderswo.get(x.m))}</i>` : ''}</label>`; }).join('') +
+        extra.map(m => `<label title="nicht in der Wirkkette"><input type="checkbox" value="${esc(m)}" checked> ${esc(m)} <i>von Hand</i></label>`).join('')
+      : `<span class="leer">${sig ? 'An dieser Grenze liefert die Wirkkette keine Signale.' : 'Kein Schaltplan-Stand – Signale unten von Hand eintragen.'}</span>`;
+    $$('#ifSignale input').forEach(c => c.onchange = () => { c.checked ? gewaehlt.add(c.value) : gewaehlt.delete(c.value); quelleSenke(); });
+  };
+  /* Quelle/Senke vorschlagen, solange leer */
+  let vorQ = '', vorZ = '';
+  const quelleSenke = () => { const eb = $('#ifEbene').value, ri = $('#ifRichtung').value, kand = ifKandidaten(sig, eb, ri, $('#ifCluster').value).filter(x => gewaehlt.has(x.m));
+    vorQ = [...new Set(kand.flatMap(x => x.quelle || []))].join(', '); vorZ = [...new Set(kand.flatMap(x => x.senke || []))].join(', ');
+    if (eb === 'system' && ri === 'ein' && !vorQ && kand.length) vorQ = 'außerhalb des Steuergeräts (Sensor/Bus)';
+    if (eb === 'system' && ri === 'aus' && !vorZ && kand.length) vorZ = 'außerhalb des Steuergeräts (Aktor/Bus)';
+    $('#ifQuelleF').placeholder = vorQ || 'Sensor, Bus oder Komponente'; $('#ifSenke').placeholder = vorZ || 'Aktor, Bus oder Komponente'; };
+  $('#ifEbene').onchange = $('#ifRichtung').onchange = $('#ifCluster').onchange = () => { gewaehlt = new Set(); sigZeigen(); };
+  $('#ifSigFrei').value = '';
+  sigZeigen(); quelleSenke();
+  $('#ifFehler').textContent = '';
+  $('#ifLoeschen').hidden = neu;
+  $('#ifLoeschen').onclick = () => { const v = ifVerwendung(f.id);
+    if (v.length && !confirm(f.id + ' wird von ' + v.length + ' Anforderung(en) verwendet. Trotzdem löschen?')) return;
+    S.interfaces = S.interfaces.filter(x => x.id !== f.id); $('#ifDlg').close(); speichern(); zeichnen(); toast(f.id + ' gelöscht'); };
+  $('#ifDlg').onclose = null;
+  $('#ifOk').onclick = ev => {
+    const name = norm($('#ifName').value), signale = [...new Set([...gewaehlt, ...frei()])];
+    if (!name) { ev.preventDefault(); $('#ifFehler').textContent = 'Bitte einen Namen angeben.'; return; }
+    if (!signale.length) { ev.preventDefault(); $('#ifFehler').textContent = 'Mindestens ein Signal wählen oder eintragen.'; return; }
+    const eb = $('#ifEbene').value;
+    const o = { id:neu ? ifNeueId() : f.id, name, ebene:eb, richtung:$('#ifRichtung').value, cluster:eb === 'cluster' ? $('#ifCluster').value : '', signale };
+    [['ifGroesse', 'groesse'], ['ifEinheit', 'einheit'], ['ifMin', 'min'], ['ifMax', 'max'], ['ifAufl', 'aufl'], ['ifRaster', 'raster'], ['ifLatenz', 'latenz'],
+     ['ifGueltig', 'gueltig'], ['ifErsatz', 'ersatz'], ['ifDiagnose', 'diagnose'], ['ifNotiz', 'notiz']].forEach(([i, k]) => { const v = norm($('#' + i).value); if (v) o[k] = v; });
+    /* leer gelassen: Vorschlag aus der Wirkkette übernehmen */
+    const qv = norm($('#ifQuelleF').value) || vorQ, zv = norm($('#ifSenke').value) || vorZ; if (qv) o.quelle = qv; if (zv) o.senke = zv;
+    if (neu) S.interfaces.push(o); else S.interfaces[S.interfaces.findIndex(x => x.id === f.id)] = o;
+    speichern(); setTimeout(zeichnen, 0); toast(o.id + (neu ? ' angelegt' : ' gespeichert'));
+  };
+  $('#ifDlg').showModal(); setTimeout(() => $('#ifName').focus(), 30);
 }
 
 /* ───────── Start ───────── */
@@ -2566,7 +2822,16 @@ async function boot(){
   else {
     try { const d = await idbGet('data'); if (d && Array.isArray(d.staende)) S = Object.assign(leer(), d); } catch (e) { console.warn(e); }
   }
-  zeichnen();
+  if (!Array.isArray(S.interfaces)) S.interfaces = [];
+  if (!hashFolgen()) zeichnen();
+}
+/* Sprungziele aus dem Kontor: #auftraege/system, #auftraege/software, #interfaces, #interfaces/cluster … */
+function hashFolgen(){
+  const [r, teil] = decodeURIComponent(location.hash.slice(1)).split('/');
+  if (!['bestand', 'auftraege', 'interfaces', 'vergleich', 'pruefung', 'staende'].includes(r)) return false;
+  if (r === 'auftraege') UI.abschnitt = ['system', 'software'].includes(teil) ? teil : 'alle';
+  if (r === 'interfaces') UI.ifFilter = ['system', 'cluster'].includes(teil) ? teil : 'alle';
+  reiter(r); return true;
 }
 
 /* Theme & Uhr (Werkbank-konform) */
