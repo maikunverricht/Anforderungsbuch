@@ -315,6 +315,12 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
   .au-rq .tx,.au-rq .mt,.au-knoepfe{grid-column:1 / -1;grid-row:auto;justify-content:flex-start}
   .au-kinder{margin-left:8px;padding-left:8px}
 }
+.au-rq .au-quelle{grid-column:3;font-size:12px;color:var(--text-3);line-height:1.5;white-space:pre-line;overflow-wrap:anywhere;max-height:4.5em;overflow:hidden}
+.au-rq .au-quelle b{font-weight:600;color:var(--text-2)}
+.au-offen{color:var(--text-3)}
+.au-zitat{margin:6px 0 12px;padding:8px 12px;border-left:3px solid var(--line-hi);color:var(--text-2);font-size:13px;white-space:pre-line;max-height:200px;overflow:auto}
+@media (max-width:760px){.au-rq .au-quelle{grid-column:1 / -1}}
+#auAktiv.an{border-color:color-mix(in srgb,var(--teal) 55%,transparent);color:var(--teal)}
 
 </style>
 </head>
@@ -376,13 +382,14 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
   <section class="ansicht" id="v-auftraege" aria-label="Aufträge">
     <div class="leiste">
       <select class="sel au-sel" id="auWahl" aria-label="Auftrag"></select>
+      <button type="button" class="btn klein" id="auAktiv">als aktiv setzen</button>
       <button type="button" class="btn klein" id="auAufteilen" data-schreib>L1 aufteilen</button>
       <span style="flex:1"></span>
       <button type="button" class="btn klein" id="auCsvBtn">Anforderungen des Auftrags (CSV)</button>
     </div>
     <div id="auKopf"></div>
     <div class="liste" id="auListe"></div>
-    <p class="hinweis" style="margin-top:12px">L1 kommt aus dem KapazitätenPlaner (Beschreibung des Issues). L2 ist neu oder eine bestehende Anforderung, die der Auftrag betrifft; L2 zielt auf das BC-Release, L3 je SW-Cluster auf das FC-Release, L4 je Funktion. Cluster und Funktionen schlägt der Schaltplan vor, geänderte Funktionen der Funktionsentwurf.</p>
+    <p class="hinweis" style="margin-top:12px"><b>L1</b> Kundenanforderung – Freitext des Issues aus dem KapazitätenPlaner, hier als Anforderung formuliert. <b>L2</b> Systemanforderung – übergeordnete Wirkkette im Steuergerät, neu oder eine bestehende, die der Auftrag betrifft; zielt auf das BC-Release. <b>L3</b> Wirkkette je SW-Cluster; zielt auf das FC-Release. <b>L4</b> Anforderung an die einzelne Funktion. Cluster und Funktionen schlägt der Schaltplan vor, geänderte Funktionen der Funktionsentwurf.</p>
   </section>
 
   <section class="ansicht" id="v-vergleich" aria-label="Vergleich">
@@ -499,6 +506,22 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
     <header><h2>L1 aufteilen</h2><p id="l1Quelle"></p></header>
     <div class="dl-in"><textarea class="feld au-text" id="l1Feld" rows="10" spellcheck="false" aria-label="L1, eine je Zeile"></textarea>
       <p class="hinweis" style="margin-top:8px">Eine Zeile bleibt eine L1 mit dem ganzen Text des Issues. Bestehende L2 hängen danach an der ersten L1.</p></div>
+    <footer>
+      <button class="btn" value="abbr" type="submit">Abbrechen</button>
+      <button class="btn haupt" value="ok" type="submit">Übernehmen</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="dlg" id="l1fDlg">
+  <form method="dialog">
+    <header><h2>L1 als Anforderung formulieren</h2><p id="l1fHinweis"></p></header>
+    <div class="dl-in">
+      <p class="hinweis">Kunde (Freitext):</p>
+      <blockquote class="au-zitat" id="l1fQuelle"></blockquote>
+      <textarea class="feld au-text" id="l1fText" rows="4" aria-label="Formulierte Kundenanforderung" placeholder="Das System muss …"></textarea>
+      <p class="fehler" id="l1fBefund"></p>
+    </div>
     <footer>
       <button class="btn" value="abbr" type="submit">Abbrechen</button>
       <button class="btn haupt" value="ok" type="submit">Übernehmen</button>
@@ -1284,6 +1307,129 @@ WBTor({
 });
 </script>
 <script>
+/* ═══ WBAblage · Auftragsordner (gemeinsam für alle Werkzeuge, seit 18.11.2026) ═══
+   Alle Werkzeuge liegen unter maikunverricht.github.io und teilen damit IndexedDB
+   und localStorage. Die Wurzel (Netzlaufwerk oder per OneDrive synchronisierter
+   SharePoint-Ordner) wird einmal gewählt; der Ordner-Zugriff liegt in der
+   IndexedDB „wb-ablage“. Je Auftrag: <IssueID>_<Kurztitel>/ mit festen
+   Unterordnern. Ohne File System Access (Firefox, Safari): ZIP mit dem Gerüst.
+   Aktiver Auftrag (für alle Werkzeuge): localStorage „wb-aktiver-auftrag“. */
+(function(){
+  if (window.WBAblage) return;
+  const UNTER = ['00_Auftrag','01_Anforderungen','02_Architektur','03_Funktionen','04_Review','05_Tests','06_Kommunikation','07_Protokolle'];
+  const CFG = 'wb-ablage-cfg', AKTIV = 'wb-aktiver-auftrag';
+  const kann = typeof window.showDirectoryPicker === 'function';
+  let merk = null; // Wurzel dieser Sitzung (spart den Weg über die IndexedDB)
+  function db(){ return new Promise((ok, nein) => { const r = indexedDB.open('wb-ablage', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => nein(r.error); }); }
+  async function get(k){ const d = await db(); return new Promise((ok, nein) => { const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => nein(q.error); }); }
+  async function put(k, v){ const d = await db(); return new Promise((ok, nein) => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = () => nein(t.error); }); }
+  function cfg(){ try { return JSON.parse(localStorage.getItem(CFG) || 'null') || {}; } catch (e) { return {}; } }
+  function cfgSetzen(o){ const c = Object.assign(cfg(), o); try { localStorage.setItem(CFG, JSON.stringify(c)); } catch (e) {} return c; }
+  function ordnerName(iid, titel){
+    const kurz = String(titel || '').replace(/[\\/:*?"<>|#%&{}~]+/g, ' ').replace(/\s+/g, '_').replace(/^[._]+|[._]+$/g, '').slice(0, 40).replace(/[._]+$/, '');
+    return String(iid).replace(/[\\/:*?"<>|]+/g, '') + (kurz ? '_' + kurz : '');
+  }
+  function linkFuer(name){
+    const w = (cfg().link || '').trim(); if (!w) return '';
+    if (/^https?:\/\//i.test(w)) return w.replace(/\/+$/, '') + '/' + encodeURIComponent(name);
+    return w.replace(/[\\/]+$/, '') + (w.includes('/') && !w.includes('\\') ? '/' : '\\') + name;
+  }
+  async function wurzelWaehlen(){
+    if (!kann) throw new Error('Dieser Browser kann keine Ordner anlegen (Chrome oder Edge nehmen).');
+    const h = await window.showDirectoryPicker({ id:'wb-ablage', mode:'readwrite' });
+    merk = h; await put('wurzel', h); cfgSetzen({ name:h.name, gewaehlt:new Date().toISOString() });
+    return h;
+  }
+  /* fragen = true nur aus einem Klick heraus (Browser verlangt eine Geste) */
+  async function wurzel(fragen){
+    if (!kann) return null;
+    let h = merk; if (!h) { try { h = await get('wurzel'); } catch (e) {} merk = h || null; }
+    if (!h) return null;
+    const o = { mode:'readwrite' };
+    let p = await h.queryPermission(o);
+    if (p !== 'granted' && fragen) p = await h.requestPermission(o);
+    return p === 'granted' ? h : null;
+  }
+  async function auftragsordner(name, fragen, anlegen){
+    const w = await wurzel(fragen); if (!w) return null;
+    return w.getDirectoryHandle(name, { create:!!anlegen });
+  }
+  async function schreibenIn(dir, pfad, inhalt){
+    const teile = pfad.split('/'); let d = dir;
+    for (let i = 0; i < teile.length - 1; i++) d = await d.getDirectoryHandle(teile[i], { create:true });
+    const f = await d.getFileHandle(teile[teile.length - 1], { create:true });
+    const w = await f.createWritable(); await w.write(inhalt); await w.close();
+  }
+  /* Ordner samt Gerüst anlegen; vorhandene Dateien bleiben unberührt (außer auftrag.json). */
+  async function anlegen(iid, titel, steckbrief){
+    const name = ordnerName(iid, titel);
+    const dir = await auftragsordner(name, true, true);
+    if (!dir) throw new Error(kann ? 'Kein Zugriff auf die Ablage – erst die Wurzel wählen.' : 'Dieser Browser kann keine Ordner anlegen.');
+    for (const u of UNTER) await dir.getDirectoryHandle(u, { create:true });
+    await schreibenIn(dir, '00_Auftrag/auftrag.json', JSON.stringify(steckbrief || { id:iid, titel }, null, 2));
+    return { name, link:linkFuer(name), angelegt:new Date().toISOString().slice(0, 10) };
+  }
+  /* Datei in den Unterordner des Auftrags legen. true = abgelegt, false = nicht möglich. */
+  async function ablegen(ordner, unter, dateiname, inhalt){
+    if (!ordner || !ordner.name) return false;
+    try { const dir = await auftragsordner(ordner.name, true, false); if (!dir) return false;
+      await schreibenIn(dir, (unter ? unter + '/' : '') + dateiname, inhalt); return true; }
+    catch (e) { console.warn('WBAblage', e); return false; }
+  }
+  /* ZIP (ungepackt) mit Gerüst und auftrag.json – für Browser ohne Ordnerzugriff */
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = u => { let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  function zip(eintraege){
+    const enc = new TextEncoder(), teile = [], zentral = []; let off = 0;
+    eintraege.forEach(d => {
+      const name = enc.encode(d.name), daten = enc.encode(d.text || ''), c = crc32(daten), ordner = d.name.endsWith('/');
+      const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+      lh.setUint32(14, c, true); lh.setUint32(18, daten.length, true); lh.setUint32(22, daten.length, true); lh.setUint16(26, name.length, true);
+      teile.push(new Uint8Array(lh.buffer), name, daten);
+      const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+      ch.setUint32(16, c, true); ch.setUint32(20, daten.length, true); ch.setUint32(24, daten.length, true); ch.setUint16(28, name.length, true);
+      ch.setUint32(38, ordner ? 0x10 : 0, true); ch.setUint32(42, off, true);
+      zentral.push(new Uint8Array(ch.buffer), name); off += 30 + name.length + daten.length;
+    });
+    const gz = zentral.reduce((s, u) => s + u.length, 0);
+    const ende = new DataView(new ArrayBuffer(22)); ende.setUint32(0, 0x06054b50, true); ende.setUint16(8, eintraege.length, true); ende.setUint16(10, eintraege.length, true);
+    ende.setUint32(12, gz, true); ende.setUint32(16, off, true);
+    return new Blob([...teile, ...zentral, new Uint8Array(ende.buffer)], { type:'application/zip' });
+  }
+  function geruestZip(iid, titel, steckbrief){
+    const name = ordnerName(iid, titel);
+    const e = UNTER.map(u => ({ name:name + '/' + u + '/' }));
+    e.push({ name:name + '/00_Auftrag/auftrag.json', text:JSON.stringify(steckbrief || { id:iid, titel }, null, 2) });
+    return { name, blob:zip(e) };
+  }
+  function aktiv(){ try { return JSON.parse(localStorage.getItem(AKTIV) || 'null'); } catch (e) { return null; } }
+  function aktivSetzen(a, von){
+    try { if (!a) localStorage.removeItem(AKTIV);
+      else localStorage.setItem(AKTIV, JSON.stringify({ id:a.id, titel:a.titel || '', bc:a.bc || '', ordner:a.ordner || null, von:von || '', gesetzt:new Date().toISOString() })); } catch (e) {}
+  }
+  /* Ordner eines Auftrags: aus der Planer-Lesekopie (führend), sonst vom aktiven Auftrag */
+  function ordnerVon(id){
+    if (!id) return null;
+    let o = null; const a = aktiv(); if (a && a.id === id && a.ordner && a.ordner.name) o = a.ordner;
+    try { const kp = JSON.parse(localStorage.getItem('wb-kapazitaetenplaner-auftraege') || 'null');
+      const e = kp && Array.isArray(kp.auftraege) && kp.auftraege.find(x => x.id === id);
+      if (e && e.ordner && e.ordner.name) o = e.ordner; } catch (e) {}
+    return o;
+  }
+  /* Ablegen, sonst herunterladen. Gibt 'ablage' oder 'download' zurück. */
+  async function sichern(id, unter, dateiname, blob){
+    const o = ordnerVon(id);
+    if (o && await ablegen(o, unter, dateiname, blob)) return 'ablage';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = dateiname; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    return 'download';
+  }
+  window.WBAblage = { UNTER, kann, cfg, cfgSetzen, ordnerName, linkFuer, wurzelWaehlen, wurzel, anlegen, ablegen, geruestZip, aktiv, aktivSetzen, ordnerVon, sichern };
+})();
+
+</script>
+<script>
 /* ══ Anforderungsbuch ═════════════════════════════════════════
    Liest DOORS-Exporte als ReqIF (.reqif / .reqifz) oder Excel/CSV.
    Jede eingelesene Datei ist ein Stand. Hoheit: die Anforderungen.
@@ -2029,7 +2175,7 @@ function binden(){
   $('#auWahl').onchange = e => { UI.auftrag = e.target.value; try { localStorage.setItem('ab-auftrag', UI.auftrag); } catch (x) {} zAuftraege(); };
   $('#auAufteilen').onclick = () => { if (sperre) return; const kp = kpLesen(); const kpA = kp && kp.auftraege.find(a => a.id === UI.auftrag); if (kpA) auL1Bearbeiten(kpA.id, kpA); };
   $('#auCsvBtn').onclick = auCsv;
-  window.addEventListener('storage', e => { if (UI.reiter === 'auftraege' && (!e.key || e.key === LS_KP || e.key === 'wb-schaltplan-data')) zAuftraege(); });
+  window.addEventListener('storage', e => { if (UI.reiter === 'auftraege' && (!e.key || e.key === LS_KP || e.key === 'wb-schaltplan-data' || e.key === 'wb-aktiver-auftrag')) zAuftraege(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#schub').classList.contains('auf')) schubZu(); });
   /* Ziehen und Ablegen – auf die ganze Seite */
   const drop = $('#drop');
@@ -2064,7 +2210,19 @@ function binden(){
    BC-Release), L3 je SW-Cluster (Bezug FC/Component-Release), L4 je Funktion.
    Jede Anforderung trägt auftrag, ebene und eltern. Ablage in S.auftraege. */
 const LS_KP = 'wb-kapazitaetenplaner-auftraege';
-const EBENE_NAME = { 1:'Kundenanforderung', 2:'SW-Anforderung', 3:'Cluster', 4:'Funktion' };
+const EBENE_NAME = { 1:'Kundenanforderung', 2:'Systemanforderung', 3:'Cluster-Wirkkette', 4:'Funktion' };
+const EBENE_HILFE = {
+  1:'Was der Kunde will – aus dem Freitext des Issues als prüfbare Anforderung formuliert (muss/soll, keine weichen Wörter).',
+  2:'Übergeordnete Wirkkette im Steuergerät: Eingang → Verarbeitung → Ausgang, ohne Aufteilung auf Cluster.',
+  3:'Die Systemanforderung heruntergebrochen auf die Wirkkette eines SW-Clusters.',
+  4:'Anforderung an eine einzelne Funktion des Clusters.' };
+/* L1-Prüfung: formuliert, mit Modalverb, ohne weiche Wörter */
+function auL1Befund(x){
+  if (!x.t || !norm(x.t)) return 'noch formulieren';
+  if (!PFLICHT.test(x.t)) return 'ohne muss/soll';
+  const w = weichRegex(); if (w && (w.lastIndex = 0, w.test(x.t))) return 'weiches Wort';
+  return '';
+}
 function kpLesen(){ try { const d = JSON.parse(localStorage.getItem(LS_KP) || 'null'); return d && Array.isArray(d.auftraege) ? d : null; } catch (e) { return null; } }
 function spLesen(){ try { return JSON.parse(localStorage.getItem('wb-schaltplan-data') || 'null'); } catch (e) { return null; } }
 function feLesen(){ try { return JSON.parse(localStorage.getItem('wb-funktionsentwurf-stand') || 'null'); } catch (e) { return null; } }
@@ -2075,11 +2233,13 @@ function auAuftrag(iid, anlegen){
   return a || null;
 }
 /* L1 des Auftrags: aufgeteilt (hier geführt) oder die ganze Beschreibung */
+/* L1 = Kundenanforderung. quelle: Freitext aus dem Issue (Ausschnitt), t: formuliert.
+   Ältere Ablage kannte nur t (= Freitext) – dann gilt sie als Quelle. */
 function auL1(iid, kpA){
   const a = auAuftrag(iid);
-  if (a && Array.isArray(a.l1) && a.l1.length) return a.l1;
+  if (a && Array.isArray(a.l1) && a.l1.length) return a.l1.map(x => x.quelle === undefined ? { id:x.id, quelle:x.t, t:'' } : x);
   const t = kpA && kpA.l1 && kpA.l1[0] ? kpA.l1[0].t : '';
-  return t ? [{ id:iid + '-L1', t }] : [];
+  return t ? [{ id:iid + '-L1', quelle:t, t:'' }] : [];
 }
 function auNeueId(iid, ebene){
   const a = auAuftrag(iid, true), p = iid + '-L' + ebene + '-';
@@ -2118,7 +2278,8 @@ function zAuftraege(){
   const sortiert = kp.auftraege.slice().sort((x, y) => {
     const mx = ich && (x.beteiligt || []).includes(ich), my = ich && (y.beteiligt || []).includes(ich);
     return (my - mx) || (y.imV - x.imV) || x.id.localeCompare(y.id); });
-  if (!UI.auftrag || !kp.auftraege.some(a => a.id === UI.auftrag)) UI.auftrag = sortiert[0].id;
+  const akt = window.WBAblage ? WBAblage.aktiv() : null;
+  if (!UI.auftrag || !kp.auftraege.some(a => a.id === UI.auftrag)) UI.auftrag = akt && kp.auftraege.some(a => a.id === akt.id) ? akt.id : sortiert[0].id;
   wahl.innerHTML = sortiert.map(a => { const m = ich && (a.beteiligt || []).includes(ich);
     const n = (auAuftrag(a.id) || { reqs:[] }).reqs.length;
     return `<option value="${esc(a.id)}"${a.id === UI.auftrag ? ' selected' : ''}>${m ? '● ' : ''}${esc(a.id)} · ${esc(a.titel)}${n ? ' (' + n + ')' : ''}</option>`; }).join('');
@@ -2129,7 +2290,7 @@ function zAuftraege(){
   const kinder = id => a.reqs.filter(r => r.eltern === id);
   /* Lücken in der Verfolgung */
   const luecken = [];
-  l1.forEach(x => { if (!kinder(x.id).length) luecken.push(x.id + ' ohne L2'); });
+  l1.forEach(x => { const b = auL1Befund(x); if (b) luecken.push(x.id + ': ' + b); if (!kinder(x.id).length) luecken.push(x.id + ' ohne L2'); });
   je(2).forEach(x => { if (!kinder(x.id).length) luecken.push(x.id + ' ohne L3'); });
   je(3).forEach(x => { if (!kinder(x.id).length) luecken.push(x.id + ' ohne L4'); });
   $('#auKopf').innerHTML =
@@ -2153,8 +2314,11 @@ function zAuftraege(){
   const baum = id => kinder(id).map(r => zeile(r) + `<div class="au-kinder">${baum(r.id)}</div>`).join('');
   const verwaist = a.reqs.filter(r => r.eltern && !a.reqs.some(q => q.id === r.eltern) && !l1.some(q => q.id === r.eltern));
   el.innerHTML = l1.length ? l1.map(x => `<div class="au-l1">
-      <div class="au-rq e1"><span class="au-eb">L1</span><span class="id">${esc(x.id)}</span><span class="tx">${esc(x.t)}</span>
-        <span class="au-knoepfe"><button type="button" class="btn klein" data-au-neu="2" data-au-el="${esc(x.id)}" data-schreib>+ L2</button></span></div>
+      <div class="au-rq e1"><span class="au-eb">L1</span><span class="id">${esc(x.id)}</span>
+        <span class="tx">${x.t ? esc(x.t) : '<i class="au-offen">noch nicht als Anforderung formuliert</i>'}</span>
+        <span class="mt">${auL1Befund(x) ? `<span class="tag befund">${esc(auL1Befund(x))}</span>` : '<span class="tag neu">formuliert</span>'}</span>
+        <span class="au-quelle" title="Freitext aus dem Issue"><b>Kunde:</b> ${esc(x.quelle || '')}</span>
+        <span class="au-knoepfe"><button type="button" class="btn klein" data-au-l1f="${esc(x.id)}" data-schreib>Formulieren</button><button type="button" class="btn klein" data-au-neu="2" data-au-el="${esc(x.id)}" data-schreib>+ L2</button></span></div>
       <div class="au-kinder">${baum(x.id)}</div></div>`).join('') +
       (verwaist.length ? `<div class="au-l1"><p class="hinweis">Ohne gültige Eltern (L1 neu aufgeteilt?):</p>${verwaist.map(zeile).join('')}</div>` : '')
     : `<div class="leer"><h2>Keine L1</h2>Das Issue bringt keine Beschreibung mit. Erwartet wird die Spalte „Description Issue“ oder „Beschreibung Issue“ in der Austausch-Excel.<br>
@@ -2162,22 +2326,32 @@ function zAuftraege(){
   $$('[data-au-neu]', el).forEach(b => b.onclick = () => auDialog(iid, kpA, { ebene:+b.dataset.auNeu, eltern:b.dataset.auEl }));
   $$('[data-au-edit]', el).forEach(b => b.onclick = () => auDialog(iid, kpA, a.reqs.find(r => r.id === b.dataset.auEdit)));
   const l1b = $('[data-au-l1]', el); if (l1b) l1b.onclick = () => auL1Bearbeiten(iid, kpA);
+  $$('[data-au-l1f]', el).forEach(b => b.onclick = () => auL1Formulieren(iid, kpA, b.dataset.auL1f));
   $('#auAufteilen').disabled = !(kpA.l1 && kpA.l1.length) && !(a.l1 && a.l1.length);
+  const istAktiv = !!(akt && akt.id === iid), ab = $('#auAktiv');
+  ab.textContent = istAktiv ? '● aktiver Auftrag' : 'als aktiv setzen'; ab.classList.toggle('an', istAktiv);
+  ab.title = 'Alle Werkzeuge arbeiten für diesen Auftrag (Anzeige, Ablage in den Auftragsordner)';
+  ab.onclick = () => { WBAblage.aktivSetzen(istAktiv ? null : { id:iid, titel:kpA.titel, bc:kpA.bc, ordner:kpA.ordner && kpA.ordner.name ? kpA.ordner : null }, 'anforderungsbuch'); zAuftraege(); };
+  const o = window.WBAblage && WBAblage.ordnerVon(iid);
+  $('#auCsvBtn').textContent = o ? 'CSV in den Auftragsordner' : 'Anforderungen des Auftrags (CSV)';
   if (sperre) $$('[data-schreib]', $('#v-auftraege')).forEach(b => b.disabled = true);
 }
 
 /* L1 aufteilen: eine Zeile je L1. Leerzeilen und Aufzählungszeichen fallen weg. */
 function auL1Bearbeiten(iid, kpA){
   const a = auAuftrag(iid, true), alt = auL1(iid, kpA);
-  const vorschlag = alt.length > 1 ? alt.map(x => x.t).join('\n')
-    : String((alt[0] && alt[0].t) || '').split(/\r?\n/).map(z => z.replace(/^\s*([-*•–]|\d+[.)])\s*/, '').trim()).filter(Boolean).join('\n');
+  const vorschlag = alt.length > 1 ? alt.map(x => x.quelle).join('\n')
+    : String((alt[0] && alt[0].quelle) || '').split(/\r?\n/).map(z => z.replace(/^\s*([-*•–]|\d+[.)])\s*/, '').trim()).filter(Boolean).join('\n');
   $('#l1Feld').value = vorschlag;
-  $('#l1Quelle').textContent = kpA && kpA.l1 && kpA.l1[0] ? 'Beschreibung des Issues im KapazitätenPlaner – eine Zeile je L1.' : 'Eine Zeile je L1.';
+  $('#l1Quelle').textContent = kpA && kpA.l1 && kpA.l1[0] ? 'Freitext des Issues im KapazitätenPlaner – eine Zeile je Kundenwunsch. Danach jede L1 als Anforderung formulieren.' : 'Eine Zeile je Kundenwunsch.';
   $('#l1Dlg').returnValue = '';
   $('#l1Dlg').onclose = () => {
     if ($('#l1Dlg').returnValue !== 'ok') return;
     const zeilen = $('#l1Feld').value.split(/\r?\n/).map(z => z.trim()).filter(Boolean);
-    a.l1 = zeilen.length > 1 || !(kpA && kpA.l1 && kpA.l1[0]) ? zeilen.map((t, i) => ({ id:iid + '-L1-' + String(i + 1).padStart(2, '0'), t })) : null;
+    /* Formulierungen bleiben an ihrem Freitext hängen */
+    const tVon = new Map(alt.map(x => [norm(x.quelle), x.t]));
+    a.l1 = zeilen.length > 1 ? zeilen.map((q, i) => ({ id:iid + '-L1-' + String(i + 1).padStart(2, '0'), quelle:q, t:tVon.get(norm(q)) || '' }))
+      : zeilen.length ? [{ id:iid + '-L1', quelle:(kpA && kpA.l1 && kpA.l1[0] && zeilen.length === 1 && alt.length === 1 ? alt[0].quelle : zeilen[0]), t:(alt.length === 1 ? alt[0].t : '') || '' }] : null;
     /* Kinder der alten Gesamt-L1 hängen an die erste neue */
     const neu = auL1(iid, kpA);
     a.reqs.forEach(r => { if (r.ebene === 2 && !neu.some(x => x.id === r.eltern) && neu[0]) r.eltern = neu[0].id; });
@@ -2186,11 +2360,27 @@ function auL1Bearbeiten(iid, kpA){
   $('#l1Dlg').showModal();
 }
 
+function auL1Formulieren(iid, kpA, id){
+  const a = auAuftrag(iid, true), alle = auL1(iid, kpA), x = alle.find(y => y.id === id); if (!x) return;
+  $('#l1fQuelle').textContent = x.quelle || '';
+  $('#l1fText').value = x.t || '';
+  $('#l1fHinweis').textContent = EBENE_HILFE[1];
+  const pruefen = () => { const b = auL1Befund({ t:$('#l1fText').value }); $('#l1fBefund').textContent = b && b !== 'noch formulieren' ? 'Hinweis: ' + b : ''; };
+  $('#l1fText').oninput = pruefen; pruefen();
+  $('#l1fDlg').returnValue = '';
+  $('#l1fDlg').onclose = () => {
+    if ($('#l1fDlg').returnValue !== 'ok') return;
+    a.l1 = alle.map(y => y.id === id ? Object.assign({}, y, { t:$('#l1fText').value.trim() }) : y);
+    speichern(); zAuftraege();
+  };
+  $('#l1fDlg').showModal();
+}
+
 function auDialog(iid, kpA, r){
   const a = auAuftrag(iid, true), neu = !r.id, e = r.ebene, q = auQuellen();
   const st = aktStand();
   $('#auDlgTitel').textContent = (neu ? 'Neue ' : '') + 'L' + e + ' · ' + EBENE_NAME[e];
-  $('#auDlgEltern').textContent = 'unter ' + r.eltern;
+  $('#auDlgEltern').textContent = 'unter ' + r.eltern + ' · ' + EBENE_HILFE[e];
   $('#auText').value = r.t || '';
   /* L2: neu oder bestehende (betroffen) aus dem jüngsten Stand */
   $$('.au-nur2').forEach(x => x.hidden = e !== 2);
@@ -2249,11 +2439,18 @@ function auCsv(){
   const kp = kpLesen(); const iid = UI.auftrag; if (!iid) return;
   const kpA = kp && kp.auftraege.find(a => a.id === iid); const a = auAuftrag(iid) || { reqs:[] };
   const q = s => '"' + String(s ?? '').replace(/"/g, '""') + '"';
-  const zeilen = [['ID','Ebene','Text','Eltern','Art','Release','Cluster','Funktion','Auftrag'].map(q).join(';')];
-  auL1(iid, kpA).forEach(x => zeilen.push([x.id, 'L1', x.t, '', 'Auftrag', '', '', '', iid].map(q).join(';')));
+  const zeilen = [['ID','Ebene','Text','Eltern','Art','Release','Cluster','Funktion','Auftrag','Kunde (Freitext)'].map(q).join(';')];
+  auL1(iid, kpA).forEach(x => zeilen.push([x.id, 'L1', x.t, '', 'Kunde', '', '', '', iid, x.quelle].map(q).join(';')));
   a.reqs.slice().sort((x, y) => x.ebene - y.ebene || x.id.localeCompare(y.id))
-    .forEach(r => zeilen.push([r.id, 'L' + r.ebene, r.t, r.eltern, r.art, r.release, r.cl, r.fn, iid].map(q).join(';')));
-  herunterladen('anforderungen_' + iid + '.csv', '﻿' + zeilen.join('\r\n'), 'text/csv;charset=utf-8');
+    .forEach(r => zeilen.push([r.id, 'L' + r.ebene, r.t, r.eltern, r.art, r.release, r.cl, r.fn, iid, ''].map(q).join(';')));
+  const name = 'anforderungen_' + iid + '.csv', inhalt = '﻿' + zeilen.join('\r\n');
+  /* Mit Auftragsordner: nach 01_Anforderungen, sonst herunterladen */
+  if (window.WBAblage && WBAblage.ordnerVon(iid)) {
+    WBAblage.sichern(iid, '01_Anforderungen', name, new Blob([inhalt], { type:'text/csv;charset=utf-8' }))
+      .then(w => { if (w === 'ablage') toast('Im Auftragsordner abgelegt: 01_Anforderungen/' + name); });
+    return;
+  }
+  herunterladen(name, inhalt, 'text/csv;charset=utf-8');
 }
 
 /* Für die Lesekopie: Aufträge mit ihren Anforderungen */
@@ -2263,7 +2460,7 @@ function auLesekopie(){
     const a = S.auftraege[iid]; const kpA = kp && kp.auftraege.find(x => x.id === iid);
     const l1 = auL1(iid, kpA);
     if (!a.reqs.length && !(a.l1 && a.l1.length)) return;
-    out[iid] = { l1:l1.map(x => ({ id:x.id, t:norm(x.t).slice(0, 240) })),
+    out[iid] = { l1:l1.map(x => ({ id:x.id, t:norm(x.t || x.quelle).slice(0, 240), formuliert:!auL1Befund(x) })),
       reqs:a.reqs.map(r => { const o = { id:r.id, ebene:r.ebene, eltern:r.eltern, t:norm(r.t).slice(0, 240), art:r.art };
         if (r.release) o.release = r.release; if (r.cl) o.cl = r.cl; if (r.fn) o.fn = r.fn; return o; }) };
   });
