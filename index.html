@@ -321,6 +321,9 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
 .au-zitat{margin:6px 0 12px;padding:8px 12px;border-left:3px solid var(--line-hi);color:var(--text-2);font-size:13px;white-space:pre-line;max-height:200px;overflow:auto}
 @media (max-width:760px){.au-rq .au-quelle{grid-column:1 / -1}}
 #auAktiv.an{border-color:color-mix(in srgb,var(--teal) 55%,transparent);color:var(--teal)}
+.au-kinder{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--text-2)}
+#auVerweis:empty{display:none}
+.akt-l select[data-lv]{width:auto;min-width:0;padding-right:28px}
 
 </style>
 </head>
@@ -442,6 +445,7 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
     <div class="dl-in">
       <div class="zuo">
         <label for="zuoName">Name des Stands</label><input class="feld" id="zuoName" autocomplete="off">
+        <label for="zuoLv">Anforderungsebene</label><select class="sel" id="zuoLv"><option value="">ganzes Modul / gemischt</option><option value="2">L2 · Systemanforderung</option><option value="3">L3 · Cluster-Wirkkette</option><option value="4">L4 · Funktion</option></select>
         <label for="zuoId">ID <b>*</b></label><select class="sel" id="zuoId"></select>
         <label for="zuoText">Text <b>*</b></label><select class="sel" id="zuoText"></select>
         <label for="zuoKap">Überschrift</label><select class="sel" id="zuoKap"></select>
@@ -489,6 +493,8 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
         <span class="au-nur3"><input class="feld" id="auCl" list="auClListe" autocomplete="off" spellcheck="false"><datalist id="auClListe"></datalist></span>
         <label for="auFn" class="au-nur4">Funktion</label>
         <span class="au-nur4"><input class="feld" id="auFn" list="auFnListe" autocomplete="off" spellcheck="false"><datalist id="auFnListe"></datalist><span class="hinweis" id="auFnHinweis"></span></span>
+        <span></span><span class="hinweis" id="auVerweis"></span>
+        <span id="auKinderL"></span><label class="au-kinder" id="auKinderZeile" hidden><input type="checkbox" id="auKinder" checked> <span id="auKinderText"></span></label>
       </div>
       <p class="fehler" id="auFehler"></p>
     </div>
@@ -1534,8 +1540,15 @@ function lesekopie(){
 /* ───────── Stände ───────── */
 const standVon = id => S.staende.find(s => s.id === id) || null;
 const aktStand = () => standVon(S.aktuell) || S.staende[S.staende.length - 1] || null;
+/* Stand einer Anforderungsebene (L2/L3/L4): jüngster dieser Ebene, sonst jüngstes ganzes Modul */
+function standFuer(e){
+  for (let i = S.staende.length - 1; i >= 0; i--) if (S.staende[i].lv === e) return S.staende[i];
+  for (let i = S.staende.length - 1; i >= 0; i--) if (!S.staende[i].lv) return S.staende[i];
+  return null;
+}
+const lvName = st => st && st.lv ? 'L' + st.lv + ' · ' : '';
 /* Vorstand = der Stand, der in der Liste direkt davor steht */
-function vorStand(st){ const i = S.staende.indexOf(st); return i > 0 ? S.staende[i - 1] : null; }
+function vorStand(st){ const i = S.staende.indexOf(st); for (let j = i - 1; j >= 0; j--) if ((S.staende[j].lv || 0) === (st.lv || 0)) return S.staende[j]; return null; }
 
 /* ───────── Zip (für .reqifz) ─────────
    Liest das Inhaltsverzeichnis am Ende und entpackt mit DecompressionStream. */
@@ -1709,6 +1722,8 @@ function zuordnungFragen(roh, dateiname){
     $('#zuoKap').innerHTML = opts(v.kap, false);
     $('#zuoEbene').innerHTML = opts(v.ebene, false);
     $('#zuoLinks').innerHTML = opts(v.links, false);
+    /* Ebene: aus dem Dateinamen (L2/L3/L4), sonst wie beim letzten Import dieser Spalten */
+    $('#zuoLv').value = (/(^|[^a-z0-9])l([234])([^0-9]|$)/i.exec(dateiname) || [])[2] || (v.lv ? String(v.lv) : '');
     $('#zuoName').value = roh.titel && !/^\s*$/.test(roh.titel) ? roh.titel + ' · ' + dateiname.replace(/\.[^.]+$/, '') : dateiname.replace(/\.[^.]+$/, '');
     $('#zuoQuelle').textContent = (xl ? 'Tabelle' + (roh.blatt ? ' „' + roh.blatt + '“' : '') : 'ReqIF') + ' · ' + dateiname + ' · ' + roh.zeilen.length + ' Objekte';
     $('#zuoHinweis').textContent = xl
@@ -1731,7 +1746,7 @@ function zuordnungFragen(roh, dateiname){
     dlg.onclose = () => {
       if (dlg.returnValue !== 'ok') { ok(null); return; }
       ok({ id:$('#zuoId').value, text:$('#zuoText').value, kap:$('#zuoKap').value, ebene:xl ? $('#zuoEbene').value : '',
-           links:xl ? $('#zuoLinks').value : '', name:norm($('#zuoName').value) || dateiname });
+           links:xl ? $('#zuoLinks').value : '', lv:+$('#zuoLv').value || 0, name:norm($('#zuoName').value) || dateiname });
     };
     dlg.showModal();
   });
@@ -1769,7 +1784,7 @@ function standBauen(roh, z, dateiname){
     roh.links.forEach(l => { const q = byObj.get(l.von); const zid = objZuId[l.zu]; if (q && q.typ === 'req' && zid) q.links.push({ zu:zid, art:l.art }); });
   }
   const attrNamen = [...new Set(reqs.flatMap(r => Object.keys(r.attrs || {})))];
-  return { id:uid(), name:z.name, datei:dateiname, quelle:roh.quelle, importiert:new Date().toISOString(), erstellt:roh.zeit || '',
+  return { id:uid(), name:z.name, lv:z.lv || 0, datei:dateiname, quelle:roh.quelle, importiert:new Date().toISOString(), erstellt:roh.zeit || '',
     zuordnung:{ id:z.id, text:z.text, kap:z.kap }, attrNamen, reqs };
 }
 
@@ -1790,7 +1805,7 @@ async function dateiEinlesen(f){
     const st = standBauen(roh, z, f.name);
     if (!st.reqs.some(r => r.typ === 'req')) { toast('Mit dieser Zuordnung bleibt keine Anforderung übrig'); return; }
     if (beispiel) { S = Object.assign(leer(), { weich:S.weich }); beispiel = false; }
-    S.zuordnungen[signatur(roh.spalten)] = { id:z.id, text:z.text, kap:z.kap, ebene:z.ebene, links:z.links };
+    S.zuordnungen[signatur(roh.spalten)] = { id:z.id, text:z.text, kap:z.kap, ebene:z.ebene, links:z.links, lv:z.lv || 0 };
     S.staende.push(st); S.aktuell = st.id;
     const vor = vorStand(st); S.vergleich = { a: vor ? vor.id : null, b: st.id };
     await speichern();
@@ -1913,7 +1928,7 @@ function markiereWeich(t){
 function zeichnen(){
   const st = aktStand();
   $('#standWahl').innerHTML = S.staende.length
-    ? S.staende.map(s => `<option value="${s.id}"${st && s.id === st.id ? ' selected' : ''}>${esc(s.name)}</option>`).slice().reverse().join('')
+    ? S.staende.map(s => `<option value="${s.id}"${st && s.id === st.id ? ' selected' : ''}>${esc(lvName(s) + s.name)}</option>`).slice().reverse().join('')
     : '<option>Noch kein Stand</option>';
   $('#standWahl').disabled = !S.staende.length;
   kennzahlen(); reiterZahlen();
@@ -2006,7 +2021,7 @@ function zVergleich(){
   }
   let A = standVon(S.vergleich.a), B = standVon(S.vergleich.b);
   if (!B) B = aktStand(); if (!A || A === B) A = vorStand(B) || S.staende.find(s => s !== B);
-  const opt = sel => S.staende.map(s => `<option value="${s.id}"${s === sel ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
+  const opt = sel => S.staende.map(s => `<option value="${s.id}"${s === sel ? ' selected' : ''}>${esc(lvName(s) + s.name)}</option>`).join('');
   $('#vgA').innerHTML = opt(A); $('#vgB').innerHTML = opt(B);
   const d = vergleiche(A, B);
   const fl = [['alle','Alle Änderungen', d.n.neu + d.n.geaendert + d.n.geloescht], ['neu','Neu', d.n.neu], ['geaendert','Geändert', d.n.geaendert], ['geloescht','Gelöscht', d.n.geloescht], ['gleich','Unverändert', d.n.gleich]];
@@ -2058,14 +2073,16 @@ function zStaende(){
   if (!S.staende.length) { el.innerHTML = ''; return; }
   el.innerHTML = S.staende.slice().reverse().map(s => {
     const n = s.reqs.filter(r => r.typ === 'req').length;
-    return `<div class="st${s === akt ? ' akt' : ''}"><div><h3>${esc(s.name)}${s === akt ? '<span class="tag neu">angezeigt</span>' : ''}</h3>
+    return `<div class="st${s === akt ? ' akt' : ''}"><div><h3>${s.lv ? `<span class="tag">L${s.lv}</span> ` : ''}${esc(s.name)}${s === akt ? '<span class="tag neu">angezeigt</span>' : ''}</h3>
       <div class="meta">${s.quelle === 'reqif' ? 'ReqIF' : 'Excel/CSV'} · ${esc(s.datei)} · ${n} Anforderungen · eingelesen ${fmtDatum(s.importiert)}${s.erstellt ? ' · exportiert ' + fmtDatum(s.erstellt) : ''}<br>ID: ${esc(s.zuordnung.id)} · Text: ${esc(s.zuordnung.text)}</div></div>
-      <div class="akt-l">${s === akt ? '' : `<button class="btn klein" type="button" data-zeig="${s.id}">Anzeigen</button>`}
+      <div class="akt-l"><select class="sel klein" data-lv="${s.id}" title="Anforderungsebene dieses Stands" data-schreib>${[['', 'ganzes Modul'], ['2', 'L2'], ['3', 'L3'], ['4', 'L4']].map(([v, t]) => `<option value="${v}"${String(s.lv || '') === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
+        ${s === akt ? '' : `<button class="btn klein" type="button" data-zeig="${s.id}">Anzeigen</button>`}
         <button class="btn klein" type="button" data-hoch="${s.id}" title="In der Reihenfolge nach vorn (älter)" data-schreib>↑</button>
         <button class="btn klein" type="button" data-umb="${s.id}" data-schreib>Umbenennen</button>
         <button class="btn klein rot" type="button" data-weg="${s.id}" data-schreib>Löschen</button></div></div>`;
-  }).join('') + '<p class="hinweis" style="margin-top:4px">Oben der jüngste Stand. Verglichen wird ein Stand mit dem darunter. „↑“ verschiebt einen Stand um eins nach oben, falls die Dateien in falscher Folge eingelesen wurden.</p>';
+  }).join('') + '<p class="hinweis" style="margin-top:4px">Oben der jüngste Stand. Verglichen wird ein Stand mit dem nächstälteren derselben Ebene (L2, L3, L4 oder ganzes Modul). „↑“ verschiebt einen Stand um eins nach oben, falls die Dateien in falscher Folge eingelesen wurden.</p>';
   $$('[data-zeig]', el).forEach(b => b.onclick = () => { S.aktuell = b.dataset.zeig; speichern(); zeichnen(); });
+  $$('[data-lv]', el).forEach(b => b.onchange = () => { if (sperre) return; const s = standVon(b.dataset.lv); s.lv = +b.value || 0; speichern(); zeichnen(); });
   $$('[data-umb]', el).forEach(b => b.onclick = () => { if (sperre) return; const s = standVon(b.dataset.umb); const n = prompt('Name des Stands', s.name); if (n && norm(n)) { s.name = norm(n); speichern(); zeichnen(); } });
   $$('[data-weg]', el).forEach(b => b.onclick = () => { if (sperre) return; const s = standVon(b.dataset.weg); if (!confirm(`Stand „${s.name}“ löschen?`)) return;
     S.staende = S.staende.filter(x => x !== s); if (S.aktuell === s.id) S.aktuell = S.staende.length ? S.staende[S.staende.length - 1].id : null; vgCache.clear(); speichern(); zeichnen(); });
@@ -2402,7 +2419,7 @@ function auL1Formulieren(iid, kpA, id){
 
 function auDialog(iid, kpA, r){
   const a = auAuftrag(iid, true), neu = !r.id, e = r.ebene, q = auQuellen();
-  const st = aktStand();
+  const st = standFuer(e), stK = e < 4 ? standFuer(e + 1) : null;
   $('#auDlgTitel').textContent = (neu ? 'Neue ' : '') + 'L' + e + ' · ' + EBENE_NAME[e];
   $('#auDlgEltern').textContent = 'unter ' + r.eltern + ' · ' + EBENE_HILFE[e];
   $('#auText').value = r.t || '';
@@ -2413,7 +2430,27 @@ function auDialog(iid, kpA, r){
   $('#auArt').value = r.art || 'neu';
   $('#auRef').value = r.art === 'betroffen' ? r.id : '';
   $('#auRefListe').innerHTML = st ? st.reqs.filter(x => x.typ === 'req').slice(0, 3000).map(x => `<option value="${esc(x.id)}">${esc(norm(x.text).slice(0, 90))}</option>`).join('') : '';
-  $('#auRef').placeholder = st ? 'ID aus „' + st.name + '“' : 'kein Stand eingelesen';
+  $('#auRef').placeholder = st ? 'ID aus „' + lvName(st) + st.name + '“' : 'kein Stand eingelesen';
+  /* Verlinkung aus den Excel-/ReqIF-Ständen: Eltern (L e-1) und Kinder (L e+1) einer bestehenden Anforderung */
+  const verweise = id => { const x = st && st.reqs.find(y => y.typ === 'req' && y.id === id); return x ? (x.links || []).map(l => l.zu) : []; };
+  const kinderVon = id => { if (!stK || !id) return [];
+    const aus = new Set(verweise(id));
+    return stK.reqs.filter(y => y.typ === 'req' && y.id && (aus.has(y.id) || (y.links || []).some(l => l.zu === id))); };
+  const elternVorschlag = id => { if (e < 3 || !id) return '';
+    const kand = a.reqs.filter(y => y.ebene === e - 1);
+    const aus = new Set(verweise(id));
+    const stE = standFuer(e - 1);
+    const treffer = kand.filter(y => aus.has(y.id) || (stE && stE.reqs.some(z => z.id === y.id && (z.links || []).some(l => l.zu === id))));
+    return treffer.length === 1 ? treffer[0].id : ''; };
+  const verweisZeigen = () => {
+    const b = $('#auArt').value === 'betroffen', id = $('#auRef').value.trim();
+    const v = b ? verweise(id) : [], k = b ? kinderVon(id) : [], el = b ? elternVorschlag(id) : '';
+    $('#auVerweis').textContent = !b || !id ? '' : (v.length ? 'verweist auf ' + v.slice(0, 4).join(', ') + (v.length > 4 ? ' …' : '') : (st && st.reqs.some(y => y.id === id) ? 'ohne Verweise im Stand' : 'nicht im Stand gefunden')) +
+      (el && el !== r.eltern ? ' · wird unter ' + el + ' eingehängt' : '');
+    const neuK = k.filter(y => !a.reqs.some(z => z.id === y.id));
+    $('#auKinderZeile').hidden = !neuK.length;
+    $('#auKinderText').textContent = neuK.length + ' verlinkte L' + (e + 1) + ' als betroffen mit übernehmen' + (neuK.length <= 3 ? ' (' + neuK.map(y => y.id).join(', ') + ')' : '');
+  };
   /* Release: L2 → BC, L3 → FC */
   const rel = e === 2 ? (kpA.bc ? [kpA.bc] : []) : e === 3 ? (kpA.fcs || []) : [];
   $('#auRelease').innerHTML = '<option value="">–</option>' + rel.map(x => `<option${x === r.release ? ' selected' : ''}>${esc(x)}</option>`).join('');
@@ -2430,9 +2467,10 @@ function auDialog(iid, kpA, r){
   $('#auFnHinweis').textContent = clVon ? 'Funktionen aus Cluster ' + clVon + (q.geaendert.length ? ', geänderte zuerst' : '') : (q.alle.length ? '' : 'Keine Wirkkette aus dem Schaltplan – Name frei eintragen.');
   $('#auLoeschen').hidden = neu;
   $('#auFehler').textContent = '';
-  const artWechsel = () => { const b = $('#auArt').value === 'betroffen'; $('#auRefZeile').hidden = !b; $('#auRefLabel').hidden = !b; };
+  const artWechsel = () => { const b = $('#auArt').value === 'betroffen'; $('#auRefZeile').hidden = !b; $('#auRefLabel').hidden = !b; verweisZeigen(); };
+  $('#auKinder').checked = true;
   $('#auArt').onchange = artWechsel; artWechsel();
-  $('#auRef').oninput = () => { const x = st && st.reqs.find(y => y.id === $('#auRef').value.trim()); if (x && !$('#auText').value.trim()) $('#auText').value = norm(x.text); };
+  $('#auRef').oninput = () => { const x = st && st.reqs.find(y => y.id === $('#auRef').value.trim()); if (x && !$('#auText').value.trim()) $('#auText').value = norm(x.text); verweisZeigen(); };
   $('#auLoeschen').onclick = () => {
     const weg = new Set([r.id]); let mehr = true;
     while (mehr){ mehr = false; a.reqs.forEach(x => { if (!weg.has(x.id) && weg.has(x.eltern)) { weg.add(x.id); mehr = true; } }); }
@@ -2448,12 +2486,28 @@ function auDialog(iid, kpA, r){
     if (art === 'betroffen') id = ref;
     else if (neu || r.art === 'betroffen') id = auNeueId(iid, e);
     if (id !== r.id && a.reqs.some(x => x.id === id)) { ev.preventDefault(); $('#auFehler').textContent = id + ' steht schon in diesem Auftrag.'; return; }
-    const o = { id, ebene:e, eltern:r.eltern, t, art };
+    const el = art === 'betroffen' ? elternVorschlag(id) : '';
+    const o = { id, ebene:e, eltern:el || r.eltern, t, art };
     const relv = $('#auRelease').value; if (relv && e <= 3) o.release = relv;
     if (e === 3 && $('#auCl').value.trim()) o.cl = $('#auCl').value.trim();
     if (e === 4) { if ($('#auFn').value.trim()) o.fn = $('#auFn').value.trim().replace(/\(\)$/, ''); if (elt && elt.cl) o.cl = elt.cl; }
     if (neu) a.reqs.push(o);
     else { const i = a.reqs.indexOf(r); a.reqs[i] = o; if (o.id !== r.id) a.reqs.forEach(x => { if (x.eltern === r.id) x.eltern = o.id; }); }
+    /* verlinkte Kinder (und deren Kinder) als betroffen übernehmen */
+    let mit = 0;
+    if (art === 'betroffen' && !$('#auKinderZeile').hidden && $('#auKinder').checked){
+      const holen = (pid, pe, pel) => { if (pe >= 4) return; const sK = standFuer(pe + 1); if (!sK) return;
+        const sP = standFuer(pe), px = sP && sP.reqs.find(y => y.typ === 'req' && y.id === pid), aus = new Set(px ? (px.links || []).map(l => l.zu) : []);
+        sK.reqs.filter(y => y.typ === 'req' && y.id && (aus.has(y.id) || (y.links || []).some(l => l.zu === pid))).forEach(y => {
+          if (a.reqs.some(z => z.id === y.id)) return;
+          const k = { id:y.id, ebene:pe + 1, eltern:pid, t:norm(y.text), art:'betroffen' };
+          if (pe + 1 === 4 && pel) k.cl = pel;
+          if (pe + 1 === 3 && (kpA.fcs || []).length === 1) k.release = kpA.fcs[0];
+          a.reqs.push(k); mit++; holen(y.id, pe + 1, pe + 1 === 3 ? '' : pel);
+        }); };
+      holen(o.id, e, o.cl || '');
+    }
+    if (o.eltern !== r.eltern || mit) toast((o.eltern !== r.eltern ? o.id + ' unter ' + o.eltern + ' eingehängt' : '') + (o.eltern !== r.eltern && mit ? ' · ' : '') + (mit ? mit + ' verlinkte übernommen' : ''));
     speichern(); setTimeout(zAuftraege, 0);
   };
   $('#auDlg').showModal();
