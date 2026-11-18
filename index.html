@@ -281,6 +281,41 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+/* ───────── Aufträge (L1 → L4) ───────── */
+.au-sel{max-width:min(520px,100%)}
+.au-info{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin:2px 0 10px}
+.au-info b{font-size:15px}
+.au-info span{font:500 11.5px/1.3 var(--mono);color:var(--text-3)}
+.au-kz{grid-template-columns:repeat(5,minmax(0,1fr));margin-bottom:14px}
+.au-kz>div{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--glass)}
+.au-kz>div b{font:600 20px/1 var(--mono)}
+.au-kz>div span{font-size:11.5px;color:var(--text-3);overflow-wrap:anywhere}
+.au-kz>div.warn b{color:var(--amber)}
+.au-kz>div.gut b{color:var(--teal)}
+.au-l1{margin-bottom:12px}
+.au-rq{display:grid;grid-template-columns:34px 150px minmax(0,1fr) auto;gap:4px 12px;align-items:start;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--glass);margin-bottom:6px}
+.au-rq.e1{border-color:var(--line-hi)}
+.au-rq .au-eb{font:700 11px/1.45 var(--mono);color:var(--amber)}
+.au-rq.e2 .au-eb{color:var(--teal)}
+.au-rq.e3 .au-eb{color:var(--info,#7FA9F5)}
+.au-rq.e4 .au-eb{color:var(--text-2)}
+.au-rq .id{font:600 11.5px/1.45 var(--mono);color:var(--teal);word-break:break-all}
+.au-rq .tx{font-size:13.5px;line-height:1.55;white-space:pre-line;overflow-wrap:anywhere}
+.au-rq .mt{grid-column:3;display:flex;flex-wrap:wrap;gap:5px}
+.au-rq .mt:empty{display:none}
+.au-knoepfe{grid-column:4;grid-row:1;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.au-kinder{margin-left:22px;padding-left:12px;border-left:1px dashed var(--line)}
+.au-kinder:empty{display:none}
+.au-text{width:100%;min-height:80px;resize:vertical;padding:8px 10px;font:inherit;line-height:1.5}
+#auDlg [hidden]{display:none!important}
+@media (max-width:760px){
+  .au-kz{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .au-rq{grid-template-columns:30px minmax(0,1fr)}
+  .au-rq .id{grid-column:2}
+  .au-rq .tx,.au-rq .mt,.au-knoepfe{grid-column:1 / -1;grid-row:auto;justify-content:flex-start}
+  .au-kinder{margin-left:8px;padding-left:8px}
+}
+
 </style>
 </head>
 <body>
@@ -322,6 +357,7 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
 
   <nav class="reiter" id="reiter" aria-label="Ansichten">
     <button type="button" data-r="bestand" class="an">Bestand</button>
+    <button type="button" data-r="auftraege">Aufträge</button>
     <button type="button" data-r="vergleich">Vergleich</button>
     <button type="button" data-r="pruefung">Prüfung</button>
     <button type="button" data-r="staende">Stände</button>
@@ -335,6 +371,18 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
       <button type="button" class="chip" data-f="kapitel">Kapitel zeigen</button>
     </div>
     <div class="liste" id="bestandListe"></div>
+  </section>
+
+  <section class="ansicht" id="v-auftraege" aria-label="Aufträge">
+    <div class="leiste">
+      <select class="sel au-sel" id="auWahl" aria-label="Auftrag"></select>
+      <button type="button" class="btn klein" id="auAufteilen" data-schreib>L1 aufteilen</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn klein" id="auCsvBtn">Anforderungen des Auftrags (CSV)</button>
+    </div>
+    <div id="auKopf"></div>
+    <div class="liste" id="auListe"></div>
+    <p class="hinweis" style="margin-top:12px">L1 kommt aus dem KapazitätenPlaner (Beschreibung des Issues). L2 ist neu oder eine bestehende Anforderung, die der Auftrag betrifft; L2 zielt auf das BC-Release, L3 je SW-Cluster auf das FC-Release, L4 je Funktion. Cluster und Funktionen schlägt der Schaltplan vor, geänderte Funktionen der Funktionsentwurf.</p>
   </section>
 
   <section class="ansicht" id="v-vergleich" aria-label="Vergleich">
@@ -419,6 +467,45 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
     </footer>
   </form>
 </dialog>
+<dialog class="dlg" id="auDlg">
+  <form method="dialog">
+    <header><h2 id="auDlgTitel"></h2><p id="auDlgEltern"></p></header>
+    <div class="dl-in">
+      <div class="zuo">
+        <label for="auArt" class="au-nur2">Art</label>
+        <select class="sel au-nur2" id="auArt"><option value="neu">neu</option><option value="betroffen">bestehende – vom Auftrag betroffen</option></select>
+        <label for="auRef" id="auRefLabel">ID <b>*</b></label>
+        <span id="auRefZeile"><input class="feld" id="auRef" list="auRefListe" autocomplete="off" spellcheck="false"><datalist id="auRefListe"></datalist></span>
+        <label for="auText">Text <b>*</b></label><textarea class="feld au-text" id="auText" rows="4"></textarea>
+        <label for="auRelease" class="au-rel">Release</label><select class="sel au-rel" id="auRelease"></select>
+        <label for="auCl" class="au-nur3">SW-Cluster</label>
+        <span class="au-nur3"><input class="feld" id="auCl" list="auClListe" autocomplete="off" spellcheck="false"><datalist id="auClListe"></datalist></span>
+        <label for="auFn" class="au-nur4">Funktion</label>
+        <span class="au-nur4"><input class="feld" id="auFn" list="auFnListe" autocomplete="off" spellcheck="false"><datalist id="auFnListe"></datalist><span class="hinweis" id="auFnHinweis"></span></span>
+      </div>
+      <p class="fehler" id="auFehler"></p>
+    </div>
+    <footer>
+      <button class="btn rot" id="auLoeschen" type="button">Löschen</button>
+      <span style="flex:1"></span>
+      <button class="btn" value="abbr" type="submit" formnovalidate>Abbrechen</button>
+      <button class="btn haupt" id="auOk" value="ok" type="submit">Übernehmen</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="dlg" id="l1Dlg">
+  <form method="dialog">
+    <header><h2>L1 aufteilen</h2><p id="l1Quelle"></p></header>
+    <div class="dl-in"><textarea class="feld au-text" id="l1Feld" rows="10" spellcheck="false" aria-label="L1, eine je Zeile"></textarea>
+      <p class="hinweis" style="margin-top:8px">Eine Zeile bleibt eine L1 mit dem ganzen Text des Issues. Bestehende L2 hängen danach an der ersten L1.</p></div>
+    <footer>
+      <button class="btn" value="abbr" type="submit">Abbrechen</button>
+      <button class="btn haupt" value="ok" type="submit">Übernehmen</button>
+    </footer>
+  </form>
+</dialog>
+
 <input type="file" id="sicherungDatei" accept=".json,application/json" hidden>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -1193,7 +1280,7 @@ WBTor({
   "eigen": ["wb-anforderungsbuch-data"],
   "demo": {},
   "schreiben": "#importBtn,#ablageLaden,#ablageLeeren,#drop,[data-schreib]",
-  "ausgabe": "#csvBtn,#ablageSichern"
+  "ausgabe": "#csvBtn,#ablageSichern,#auCsvBtn"
 });
 </script>
 <script>
@@ -1223,10 +1310,11 @@ const META = /^(last modified( on| by)?|modified (on|by)|created( on| by| thru)?
 let S = leer();           // Bestand
 let beispiel = false;     // Schaufenster oder „Beispiel ansehen“
 let sperre = false;       // Tor zu: nichts speichern
-const UI = { reiter:'bestand', filter:new Set(), such:'', vgFilter:'alle', regel:null, max:300, aktuellOffen:null };
+const UI = { reiter:'bestand', filter:new Set(), such:'', vgFilter:'alle', regel:null, max:300, aktuellOffen:null, auftrag:'' };
+try { UI.auftrag = localStorage.getItem('ab-auftrag') || ''; } catch (e) {}
 
 function leer(){ return { app:'werkbank-anforderungsbuch', version:1, updated:null, staende:[], aktuell:null, vergleich:{a:null,b:null},
-  weich:WEICH_STANDARD.slice(), zuordnungen:{} }; }
+  weich:WEICH_STANDARD.slice(), zuordnungen:{}, auftraege:{} }; }
 const uid = () => Math.random().toString(36).slice(2, 10);
 const norm = s => String(s ?? '').replace(/\s+/g, ' ').trim();
 const fmtDatum = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); };
@@ -1250,19 +1338,28 @@ async function speichern(){
 /* Kompakt, damit TestcaseManager und Kontor lesen können, ohne die IndexedDB zu öffnen. */
 function lesekopie(){
   /* Immer der jüngste Stand – nicht der gerade angezeigte */
-  const st = S.staende[S.staende.length - 1] || null; if (!st) { try { localStorage.removeItem(LS_KOPIE); } catch (e) {} return; }
-  const vor = vorStand(st), d = vor ? vergleiche(vor, st) : null;
+  const st = S.staende[S.staende.length - 1] || null, au = auLesekopie();
+  if (!st && !Object.keys(au).length) { try { localStorage.removeItem(LS_KOPIE); } catch (e) {} return; }
+  const vor = st ? vorStand(st) : null, d = vor ? vergleiche(vor, st) : null;
   const ae = new Map(); if (d) d.liste.forEach(x => ae.set(x.id, x.art));
-  const reqs = st.reqs.filter(r => r.typ === 'req');
-  const bef = befunde(st);
+  const reqs = st ? st.reqs.filter(r => r.typ === 'req') : [];
+  const bef = st ? befunde(st) : { anzahl:0 };
   const kopie = { app:S.app, version:1, updated:S.updated,
-    stand:{ id:st.id, name:st.name, datum:st.importiert }, vorher: vor ? { id:vor.id, name:vor.name } : null,
+    stand: st ? { id:st.id, name:st.name, datum:st.importiert } : null, vorher: vor ? { id:vor.id, name:vor.name } : null,
     anzahl:reqs.length, befunde:bef.anzahl,
     aenderung: d ? { neu:d.n.neu, geaendert:d.n.geaendert, geloescht:d.n.geloescht } : null,
     /* c: Komponente, falls der Export sie als Attribut trägt – der TestcaseManager ordnet darüber zu */
     reqs: reqs.map(r => { const o = { id:r.id, t:norm(r.text).slice(0, 240) }; const a = ae.get(r.id); if (a && a !== 'gleich') o.chg = a;
       const kk = Object.keys(r.attrs || {}).find(k => KOMP.test(k)); if (kk && norm(r.attrs[kk])) o.c = norm(r.attrs[kk]); return o; }),
     geloescht: d ? d.liste.filter(x => x.art === 'geloescht').map(x => x.id) : [] };
+  /* Aufträge: L2–L4 je Auftrag. Neue Anforderungen kommen in reqs dazu, betroffene
+     bestehende tragen den Auftrag unter auf – so findet der TestcaseManager beide. */
+  kopie.auftraege = au;
+  Object.keys(au).forEach(iid => au[iid].reqs.forEach(r => {
+    const v = kopie.reqs.find(x => x.id === r.id);
+    if (v) { (v.auf || (v.auf = [])).includes(iid) || v.auf.push(iid); v.ebene = v.ebene || r.ebene; if (r.release) v.release = r.release; if (r.cl) v.cl = r.cl; }
+    else { const o = { id:r.id, t:r.t, auf:[iid], ebene:r.ebene, eltern:r.eltern }; if (r.release) o.release = r.release; if (r.cl) o.cl = r.cl; if (r.fn) o.fn = r.fn; kopie.reqs.push(o); }
+  }));
   try { localStorage.setItem(LS_KOPIE, JSON.stringify(kopie)); }
   catch (e) { kopie.reqs = kopie.reqs.map(r => ({ id:r.id, chg:r.chg, c:r.c })); try { localStorage.setItem(LS_KOPIE, JSON.stringify(kopie)); } catch (e2) {} }
 }
@@ -1653,7 +1750,7 @@ function zeichnen(){
     : '<option>Noch kein Stand</option>';
   $('#standWahl').disabled = !S.staende.length;
   kennzahlen(); reiterZahlen();
-  ({ bestand:zBestand, vergleich:zVergleich, pruefung:zPruefung, staende:zStaende })[UI.reiter]();
+  ({ bestand:zBestand, auftraege:zAuftraege, vergleich:zVergleich, pruefung:zPruefung, staende:zStaende })[UI.reiter]();
 }
 function kennzahlen(){
   const st = aktStand(); const el = $('#kz');
@@ -1928,6 +2025,11 @@ function binden(){
   $('#weichSpeichern').onclick = () => { if (sperre) return; S.weich = $('#weichFeld').value.split('\n').map(x => x.trim()).filter(Boolean); speichern(); zeichnen(); toast('Weiche Wörter übernommen'); };
   $('#weichStandard').onclick = () => { if (sperre) return; S.weich = WEICH_STANDARD.slice(); speichern(); zeichnen(); };
   $('#shZu').onclick = schubZu; $('#schubSchleier').onclick = schubZu;
+  /* Aufträge */
+  $('#auWahl').onchange = e => { UI.auftrag = e.target.value; try { localStorage.setItem('ab-auftrag', UI.auftrag); } catch (x) {} zAuftraege(); };
+  $('#auAufteilen').onclick = () => { if (sperre) return; const kp = kpLesen(); const kpA = kp && kp.auftraege.find(a => a.id === UI.auftrag); if (kpA) auL1Bearbeiten(kpA.id, kpA); };
+  $('#auCsvBtn').onclick = auCsv;
+  window.addEventListener('storage', e => { if (UI.reiter === 'auftraege' && (!e.key || e.key === LS_KP || e.key === 'wb-schaltplan-data')) zAuftraege(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#schub').classList.contains('auf')) schubZu(); });
   /* Ziehen und Ablegen – auf die ganze Seite */
   const drop = $('#drop');
@@ -1953,6 +2055,219 @@ function binden(){
   };
   $('#ablageLeeren').onclick = async () => { if (sperre) return; if (!confirm('Alle Stände auf diesem Gerät löschen?')) return;
     S = leer(); beispiel = false; vgCache.clear(); await speichern(); try { localStorage.removeItem(LS_KOPIE); } catch (e) {} zeichnen(); $('#ablageDlg').close(); };
+}
+
+/* ───────── Aufträge: L1 → L2 → L3 → L4 (seit 18.11.2026) ─────────
+   L1 kommt aus dem KapazitätenPlaner (Lesekopie wb-kapazitaetenplaner-auftraege,
+   Beschreibung des Issues, nur lesen). Hier wird sie aufgeteilt und nach unten
+   gebrochen: L2 SW-Anforderung (neu oder bestehende als „betroffen“, Bezug
+   BC-Release), L3 je SW-Cluster (Bezug FC/Component-Release), L4 je Funktion.
+   Jede Anforderung trägt auftrag, ebene und eltern. Ablage in S.auftraege. */
+const LS_KP = 'wb-kapazitaetenplaner-auftraege';
+const EBENE_NAME = { 1:'Kundenanforderung', 2:'SW-Anforderung', 3:'Cluster', 4:'Funktion' };
+function kpLesen(){ try { const d = JSON.parse(localStorage.getItem(LS_KP) || 'null'); return d && Array.isArray(d.auftraege) ? d : null; } catch (e) { return null; } }
+function spLesen(){ try { return JSON.parse(localStorage.getItem('wb-schaltplan-data') || 'null'); } catch (e) { return null; } }
+function feLesen(){ try { return JSON.parse(localStorage.getItem('wb-funktionsentwurf-stand') || 'null'); } catch (e) { return null; } }
+function auAuftrag(iid, anlegen){
+  if (!S.auftraege) S.auftraege = {};
+  let a = S.auftraege[iid];
+  if (!a && anlegen) a = S.auftraege[iid] = { l1:null, reqs:[] };
+  return a || null;
+}
+/* L1 des Auftrags: aufgeteilt (hier geführt) oder die ganze Beschreibung */
+function auL1(iid, kpA){
+  const a = auAuftrag(iid);
+  if (a && Array.isArray(a.l1) && a.l1.length) return a.l1;
+  const t = kpA && kpA.l1 && kpA.l1[0] ? kpA.l1[0].t : '';
+  return t ? [{ id:iid + '-L1', t }] : [];
+}
+function auNeueId(iid, ebene){
+  const a = auAuftrag(iid, true), p = iid + '-L' + ebene + '-';
+  let n = 1; const da = new Set(a.reqs.map(r => r.id));
+  while (da.has(p + String(n).padStart(2, '0'))) n++;
+  return p + String(n).padStart(2, '0');
+}
+/* Auswahl für Cluster und Funktionen: Schaltplan, geänderte Funktionen aus dem Funktionsentwurf */
+function auQuellen(){
+  const sp = spLesen(), fe = feLesen();
+  const cl = new Set(), fnJe = new Map(), alle = new Set();
+  ((sp && sp.comps) || []).forEach(c => {
+    const k = c.cl || c.n; if (k) cl.add(k);
+    (c.procs || []).forEach(p => { if (!p.p) return; const n = String(p.p).replace(/\(\)$/, '');
+      alle.add(n); if (!fnJe.has(k)) fnJe.set(k, new Set()); fnJe.get(k).add(n); });
+  });
+  const geaendert = ((fe && fe.geaendert) || []).map(g => g.name).filter(Boolean);
+  geaendert.forEach(n => alle.add(n));
+  return { cluster:[...cl].sort(), fnJe, alle:[...alle].sort(), geaendert };
+}
+function auPfad(a, r){ /* Kette nach oben, für Anzeige und Prüfung */
+  const out = []; let x = r, n = 0;
+  while (x && x.eltern && n++ < 6){ out.unshift(x.eltern); x = a.reqs.find(q => q.id === x.eltern); }
+  return out;
+}
+
+function zAuftraege(){
+  const el = $('#auListe'), kp = kpLesen(), wahl = $('#auWahl');
+  if (!kp || !kp.auftraege.length){
+    wahl.innerHTML = '<option>Keine Aufträge</option>'; wahl.disabled = true; $('#auKopf').innerHTML = '';
+    el.innerHTML = `<div class="leer"><h2>Noch keine Aufträge</h2>Aufträge kommen aus dem <b>KapazitätenPlaner</b>: Austausch-Excel einlesen, dann stehen die Issues hier zur Auswahl.<br>Die Beschreibung des Issues ist die L1.</div>`;
+    return;
+  }
+  wahl.disabled = false;
+  const ich = kp.angemeldet || '';
+  const sortiert = kp.auftraege.slice().sort((x, y) => {
+    const mx = ich && (x.beteiligt || []).includes(ich), my = ich && (y.beteiligt || []).includes(ich);
+    return (my - mx) || (y.imV - x.imV) || x.id.localeCompare(y.id); });
+  if (!UI.auftrag || !kp.auftraege.some(a => a.id === UI.auftrag)) UI.auftrag = sortiert[0].id;
+  wahl.innerHTML = sortiert.map(a => { const m = ich && (a.beteiligt || []).includes(ich);
+    const n = (auAuftrag(a.id) || { reqs:[] }).reqs.length;
+    return `<option value="${esc(a.id)}"${a.id === UI.auftrag ? ' selected' : ''}>${m ? '● ' : ''}${esc(a.id)} · ${esc(a.titel)}${n ? ' (' + n + ')' : ''}</option>`; }).join('');
+  const kpA = kp.auftraege.find(a => a.id === UI.auftrag), iid = kpA.id;
+  const a = auAuftrag(iid) || { l1:null, reqs:[] };
+  const l1 = auL1(iid, kpA);
+  const je = e => a.reqs.filter(r => r.ebene === e);
+  const kinder = id => a.reqs.filter(r => r.eltern === id);
+  /* Lücken in der Verfolgung */
+  const luecken = [];
+  l1.forEach(x => { if (!kinder(x.id).length) luecken.push(x.id + ' ohne L2'); });
+  je(2).forEach(x => { if (!kinder(x.id).length) luecken.push(x.id + ' ohne L3'); });
+  je(3).forEach(x => { if (!kinder(x.id).length) luecken.push(x.id + ' ohne L4'); });
+  $('#auKopf').innerHTML =
+    `<div class="au-info"><b>${esc(kpA.titel)}</b><span>${esc(iid)}${kpA.bc ? ' · ' + esc(kpA.bc) : ''}${kpA.fcs && kpA.fcs.length ? ' · ' + esc(kpA.fcs.join(', ')) : ''}${kpA.lcs ? ' · ' + esc(kpA.lcs) : ''}</span></div>
+     <div class="kz au-kz">${[1, 2, 3, 4].map(e => `<div><b>${e === 1 ? l1.length : je(e).length}</b><span>L${e} · ${EBENE_NAME[e]}</span></div>`).join('')}
+       <div class="${luecken.length ? 'warn' : (a.reqs.length ? 'gut' : '')}" title="${esc(luecken.join('\n'))}"><b>${luecken.length}</b><span>Lücken in der Verfolgung</span></div></div>`;
+  const zeile = r => {
+    const tags = [];
+    if (r.art === 'betroffen') tags.push(`<span class="tag geaendert" title="Bestehende Anforderung, vom Auftrag betroffen">betroffen</span>`);
+    else tags.push(`<span class="tag neu">neu</span>`);
+    if (r.release) tags.push(`<span class="tag" title="Ablieferprodukt">→ ${esc(r.release)}</span>`);
+    if (r.cl) tags.push(`<span class="tag" title="SW-Cluster">${esc(r.cl)}</span>`);
+    if (r.fn) tags.push(`<span class="tag" title="Funktion">${esc(r.fn)}()</span>`);
+    const nach = r.ebene < 4 ? `<button type="button" class="btn klein" data-au-neu="${r.ebene + 1}" data-au-el="${esc(r.id)}" data-schreib>+ L${r.ebene + 1}</button>` : '';
+    return `<div class="au-rq e${r.ebene}" data-au-id="${esc(r.id)}">
+      <span class="au-eb">L${r.ebene}</span><span class="id">${esc(r.id)}</span>
+      <span class="tx">${esc(r.t)}</span>
+      <span class="mt">${tags.join('')}</span>
+      <span class="au-knoepfe">${nach}<button type="button" class="btn klein" data-au-edit="${esc(r.id)}" data-schreib>Bearbeiten</button></span></div>`;
+  };
+  const baum = id => kinder(id).map(r => zeile(r) + `<div class="au-kinder">${baum(r.id)}</div>`).join('');
+  const verwaist = a.reqs.filter(r => r.eltern && !a.reqs.some(q => q.id === r.eltern) && !l1.some(q => q.id === r.eltern));
+  el.innerHTML = l1.length ? l1.map(x => `<div class="au-l1">
+      <div class="au-rq e1"><span class="au-eb">L1</span><span class="id">${esc(x.id)}</span><span class="tx">${esc(x.t)}</span>
+        <span class="au-knoepfe"><button type="button" class="btn klein" data-au-neu="2" data-au-el="${esc(x.id)}" data-schreib>+ L2</button></span></div>
+      <div class="au-kinder">${baum(x.id)}</div></div>`).join('') +
+      (verwaist.length ? `<div class="au-l1"><p class="hinweis">Ohne gültige Eltern (L1 neu aufgeteilt?):</p>${verwaist.map(zeile).join('')}</div>` : '')
+    : `<div class="leer"><h2>Keine L1</h2>Das Issue bringt keine Beschreibung mit. Erwartet wird die Spalte „Description Issue“ oder „Beschreibung Issue“ in der Austausch-Excel.<br>
+       <button class="btn" type="button" data-au-l1 data-schreib>L1 von Hand anlegen</button></div>`;
+  $$('[data-au-neu]', el).forEach(b => b.onclick = () => auDialog(iid, kpA, { ebene:+b.dataset.auNeu, eltern:b.dataset.auEl }));
+  $$('[data-au-edit]', el).forEach(b => b.onclick = () => auDialog(iid, kpA, a.reqs.find(r => r.id === b.dataset.auEdit)));
+  const l1b = $('[data-au-l1]', el); if (l1b) l1b.onclick = () => auL1Bearbeiten(iid, kpA);
+  $('#auAufteilen').disabled = !(kpA.l1 && kpA.l1.length) && !(a.l1 && a.l1.length);
+  if (sperre) $$('[data-schreib]', $('#v-auftraege')).forEach(b => b.disabled = true);
+}
+
+/* L1 aufteilen: eine Zeile je L1. Leerzeilen und Aufzählungszeichen fallen weg. */
+function auL1Bearbeiten(iid, kpA){
+  const a = auAuftrag(iid, true), alt = auL1(iid, kpA);
+  const vorschlag = alt.length > 1 ? alt.map(x => x.t).join('\n')
+    : String((alt[0] && alt[0].t) || '').split(/\r?\n/).map(z => z.replace(/^\s*([-*•–]|\d+[.)])\s*/, '').trim()).filter(Boolean).join('\n');
+  $('#l1Feld').value = vorschlag;
+  $('#l1Quelle').textContent = kpA && kpA.l1 && kpA.l1[0] ? 'Beschreibung des Issues im KapazitätenPlaner – eine Zeile je L1.' : 'Eine Zeile je L1.';
+  $('#l1Dlg').returnValue = '';
+  $('#l1Dlg').onclose = () => {
+    if ($('#l1Dlg').returnValue !== 'ok') return;
+    const zeilen = $('#l1Feld').value.split(/\r?\n/).map(z => z.trim()).filter(Boolean);
+    a.l1 = zeilen.length > 1 || !(kpA && kpA.l1 && kpA.l1[0]) ? zeilen.map((t, i) => ({ id:iid + '-L1-' + String(i + 1).padStart(2, '0'), t })) : null;
+    /* Kinder der alten Gesamt-L1 hängen an die erste neue */
+    const neu = auL1(iid, kpA);
+    a.reqs.forEach(r => { if (r.ebene === 2 && !neu.some(x => x.id === r.eltern) && neu[0]) r.eltern = neu[0].id; });
+    speichern(); zAuftraege(); toast(neu.length + ' L1');
+  };
+  $('#l1Dlg').showModal();
+}
+
+function auDialog(iid, kpA, r){
+  const a = auAuftrag(iid, true), neu = !r.id, e = r.ebene, q = auQuellen();
+  const st = aktStand();
+  $('#auDlgTitel').textContent = (neu ? 'Neue ' : '') + 'L' + e + ' · ' + EBENE_NAME[e];
+  $('#auDlgEltern').textContent = 'unter ' + r.eltern;
+  $('#auText').value = r.t || '';
+  /* L2: neu oder bestehende (betroffen) aus dem jüngsten Stand */
+  $$('.au-nur2').forEach(x => x.hidden = e !== 2);
+  $$('.au-nur3').forEach(x => x.hidden = e !== 3);
+  $$('.au-nur4').forEach(x => x.hidden = e !== 4);
+  $('#auArt').value = r.art || 'neu';
+  $('#auRef').value = r.art === 'betroffen' ? r.id : '';
+  $('#auRefListe').innerHTML = st ? st.reqs.filter(x => x.typ === 'req').slice(0, 3000).map(x => `<option value="${esc(x.id)}">${esc(norm(x.text).slice(0, 90))}</option>`).join('') : '';
+  $('#auRef').placeholder = st ? 'ID aus „' + st.name + '“' : 'kein Stand eingelesen';
+  /* Release: L2 → BC, L3 → FC */
+  const rel = e === 2 ? (kpA.bc ? [kpA.bc] : []) : e === 3 ? (kpA.fcs || []) : [];
+  $('#auRelease').innerHTML = '<option value="">–</option>' + rel.map(x => `<option${x === r.release ? ' selected' : ''}>${esc(x)}</option>`).join('');
+  if (neu && rel.length === 1) $('#auRelease').value = rel[0];
+  $$('.au-rel').forEach(x => x.hidden = e > 3);
+  /* Cluster (L3) und Funktion (L4) */
+  const elt = a.reqs.find(x => x.id === r.eltern);
+  $('#auCl').value = r.cl || ''; $('#auClListe').innerHTML = q.cluster.map(c => `<option value="${esc(c)}">`).join('');
+  const clVon = e === 4 && elt ? elt.cl : '';
+  const fns = clVon && q.fnJe.has(clVon) ? [...q.fnJe.get(clVon)] : q.alle;
+  $('#auFn').value = r.fn || '';
+  $('#auFnListe').innerHTML = q.geaendert.map(n => `<option value="${esc(n)}">geändert im Funktionsentwurf</option>`).join('') +
+    fns.filter(n => !q.geaendert.includes(n)).map(n => `<option value="${esc(n)}">`).join('');
+  $('#auFnHinweis').textContent = clVon ? 'Funktionen aus Cluster ' + clVon + (q.geaendert.length ? ', geänderte zuerst' : '') : (q.alle.length ? '' : 'Keine Wirkkette aus dem Schaltplan – Name frei eintragen.');
+  $('#auLoeschen').hidden = neu;
+  $('#auFehler').textContent = '';
+  const artWechsel = () => { const b = $('#auArt').value === 'betroffen'; $('#auRefZeile').hidden = !b || e !== 2; $('#auRefLabel').hidden = !b || e !== 2; };
+  $('#auArt').onchange = artWechsel; artWechsel();
+  $('#auRef').oninput = () => { const x = st && st.reqs.find(y => y.id === $('#auRef').value.trim()); if (x && !$('#auText').value.trim()) $('#auText').value = norm(x.text); };
+  $('#auLoeschen').onclick = () => {
+    const weg = new Set([r.id]); let mehr = true;
+    while (mehr){ mehr = false; a.reqs.forEach(x => { if (!weg.has(x.id) && weg.has(x.eltern)) { weg.add(x.id); mehr = true; } }); }
+    if (weg.size > 1 && !confirm(`${r.id} und ${weg.size - 1} darunter löschen?`)) return;
+    a.reqs = a.reqs.filter(x => !weg.has(x.id)); $('#auDlg').close('weg'); speichern(); zAuftraege();
+  };
+  $('#auDlg').returnValue = '';
+  $('#auOk').onclick = ev => {
+    const t = $('#auText').value.trim(), art = e === 2 ? $('#auArt').value : 'neu', ref = $('#auRef').value.trim();
+    if (!t) { ev.preventDefault(); $('#auFehler').textContent = 'Text fehlt.'; return; }
+    if (art === 'betroffen' && !ref) { ev.preventDefault(); $('#auFehler').textContent = 'ID der betroffenen Anforderung fehlt.'; return; }
+    let id = r.id;
+    if (art === 'betroffen') id = ref;
+    else if (neu || r.art === 'betroffen') id = auNeueId(iid, e);
+    if (id !== r.id && a.reqs.some(x => x.id === id)) { ev.preventDefault(); $('#auFehler').textContent = id + ' steht schon in diesem Auftrag.'; return; }
+    const o = { id, ebene:e, eltern:r.eltern, t, art };
+    const relv = $('#auRelease').value; if (relv && e <= 3) o.release = relv;
+    if (e === 3 && $('#auCl').value.trim()) o.cl = $('#auCl').value.trim();
+    if (e === 4) { if ($('#auFn').value.trim()) o.fn = $('#auFn').value.trim().replace(/\(\)$/, ''); if (elt && elt.cl) o.cl = elt.cl; }
+    if (neu) a.reqs.push(o);
+    else { const i = a.reqs.indexOf(r); a.reqs[i] = o; if (o.id !== r.id) a.reqs.forEach(x => { if (x.eltern === r.id) x.eltern = o.id; }); }
+    speichern(); setTimeout(zAuftraege, 0);
+  };
+  $('#auDlg').showModal();
+}
+
+function auCsv(){
+  const kp = kpLesen(); const iid = UI.auftrag; if (!iid) return;
+  const kpA = kp && kp.auftraege.find(a => a.id === iid); const a = auAuftrag(iid) || { reqs:[] };
+  const q = s => '"' + String(s ?? '').replace(/"/g, '""') + '"';
+  const zeilen = [['ID','Ebene','Text','Eltern','Art','Release','Cluster','Funktion','Auftrag'].map(q).join(';')];
+  auL1(iid, kpA).forEach(x => zeilen.push([x.id, 'L1', x.t, '', 'Auftrag', '', '', '', iid].map(q).join(';')));
+  a.reqs.slice().sort((x, y) => x.ebene - y.ebene || x.id.localeCompare(y.id))
+    .forEach(r => zeilen.push([r.id, 'L' + r.ebene, r.t, r.eltern, r.art, r.release, r.cl, r.fn, iid].map(q).join(';')));
+  herunterladen('anforderungen_' + iid + '.csv', '﻿' + zeilen.join('\r\n'), 'text/csv;charset=utf-8');
+}
+
+/* Für die Lesekopie: Aufträge mit ihren Anforderungen */
+function auLesekopie(){
+  const kp = kpLesen(), out = {};
+  Object.keys(S.auftraege || {}).forEach(iid => {
+    const a = S.auftraege[iid]; const kpA = kp && kp.auftraege.find(x => x.id === iid);
+    const l1 = auL1(iid, kpA);
+    if (!a.reqs.length && !(a.l1 && a.l1.length)) return;
+    out[iid] = { l1:l1.map(x => ({ id:x.id, t:norm(x.t).slice(0, 240) })),
+      reqs:a.reqs.map(r => { const o = { id:r.id, ebene:r.ebene, eltern:r.eltern, t:norm(r.t).slice(0, 240), art:r.art };
+        if (r.release) o.release = r.release; if (r.cl) o.cl = r.cl; if (r.fn) o.fn = r.fn; return o; }) };
+  });
+  return out;
 }
 
 /* ───────── Start ───────── */
