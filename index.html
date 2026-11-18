@@ -1602,7 +1602,7 @@ async function speichern(){
 function lesekopie(){
   /* Immer der jüngste Stand – nicht der gerade angezeigte */
   const st = S.staende[S.staende.length - 1] || null, au = auLesekopie();
-  if (!st && !Object.keys(au).length && !(S.interfaces || []).length) { try { localStorage.removeItem(LS_KOPIE); } catch (e) {} return; }
+  if (!st && !Object.keys(au).length && !ifAlle().length) { try { localStorage.removeItem(LS_KOPIE); } catch (e) {} return; }
   const vor = st ? vorStand(st) : null, d = vor ? vergleiche(vor, st) : null;
   const ae = new Map(); if (d) d.liste.forEach(x => ae.set(x.id, x.art));
   const reqs = st ? st.reqs.filter(r => r.typ === 'req') : [];
@@ -1619,7 +1619,7 @@ function lesekopie(){
      bestehende tragen den Auftrag unter auf – so findet der TestcaseManager beide. */
   kopie.auftraege = au;
   /* SystemInterfaces: Datenblatt je Gruppe, für TestcaseManager und Kontor */
-  kopie.interfaces = (S.interfaces || []).map(f => Object.assign({}, f));
+  kopie.interfaces = ifAlle().map(f => { const o = Object.assign({}, f); delete o.ausSp; return o; });
   Object.keys(au).forEach(iid => au[iid].reqs.forEach(r => {
     const v = kopie.reqs.find(x => x.id === r.id);
     if (v) { (v.auf || (v.auf = [])).includes(iid) || v.auf.push(iid); v.ebene = v.ebene || r.ebene; if (r.release) v.release = r.release; if (r.cl) v.cl = r.cl; }
@@ -2042,7 +2042,7 @@ function reiterZahlen(){
   const st = aktStand(); const b = st ? befunde(st).anzahl : 0;
   $('#reiter [data-r="pruefung"]').innerHTML = 'Prüfung' + (b ? `<i>${b}</i>` : '');
   $('#reiter [data-r="staende"]').innerHTML = 'Stände' + (S.staende.length ? `<i>${S.staende.length}</i>` : '');
-  $('#reiter [data-r="interfaces"]').innerHTML = 'Interfaces' + ((S.interfaces || []).length ? `<i>${S.interfaces.length}</i>` : '');
+  const nI = ifAlle().length; $('#reiter [data-r="interfaces"]').innerHTML = 'Interfaces' + (nI ? `<i>${nI}</i>` : '');
 }
 function reiter(r){
   UI.reiter = r; UI.max = 300;
@@ -2479,7 +2479,7 @@ function zAuftraege(){
   /* Abschnitt: Teil 1 vor der Wirkkettenanalyse (L1, L2), Teil 2 danach (L3, L4 mit Interfaces) */
   el.classList.toggle('abs-system', UI.abschnitt === 'system'); el.classList.toggle('abs-software', UI.abschnitt === 'software');
   $$('[data-abs]').forEach(b => b.classList.toggle('an', b.dataset.abs === UI.abschnitt));
-  const nIf = (S.interfaces || []).length;
+  const nIf = ifAlle().length;
   $('#auAbsHinweis').innerHTML = UI.abschnitt === 'system' ? 'vor der Wirkkettenanalyse im Schaltplan'
     : UI.abschnitt === 'software' ? `nach der Wirkkettenanalyse · <a href="#interfaces/cluster">${nIf ? nIf + ' Interfaces' : 'Interfaces festlegen'}</a>` : '';
   $$('[data-au-neu]', el).forEach(b => b.onclick = () => auDialog(iid, kpA, { ebene:+b.dataset.auNeu, eltern:b.dataset.auEl }));
@@ -2547,7 +2547,7 @@ function auDialog(iid, kpA, r){
   $$('.au-nur4').forEach(x => x.hidden = e !== 4);
   /* Option C: Verhalten als L2/L3, Datenblatt am Interface – L2 verweist auf Interfaces der Systemgrenze, L3 auf die der Clustergrenze */
   $$('.au-if').forEach(x => x.hidden = e !== 2 && e !== 3);
-  const ifPassend = (S.interfaces || []).filter(f => e === 2 ? f.ebene === 'system' : true);
+  const ifPassend = ifAlle().filter(f => e === 2 ? f.ebene === 'system' : true);
   $('#auIfListe').innerHTML = ifPassend.map(f => `<option value="${esc(f.id)}">${esc(f.name)} · ${f.ebene === 'system' ? 'System' : 'Cluster ' + esc(f.cluster || '')} · ${f.richtung === 'ein' ? 'Eingänge' : 'Ausgänge'}</option>`).join('');
   $('#auIfs').value = (r.ifs || []).join(', ');
   const ifHinweis = () => { const ids = ifListe($('#auIfs').value), unb = ids.filter(i => !ifVon(i));
@@ -2676,7 +2676,12 @@ function auLesekopie(){
 /* ───────── SystemInterfaces ─────────
    Gruppen von Eingängen bzw. Ausgängen gleicher Physik und gleicher systemischer Anforderungen,
    an der Systemgrenze (Steuergerät) oder an einer Clustergrenze. Signale aus der Wirkkette des Schaltplans. */
-const ifVon = id => (S.interfaces || []).find(f => f.id === id);
+/* Seit 18.11.2026 gruppiert und benennt der Schaltplan die Interfaces (Lesekopie wb-schaltplan-data.interfaces);
+   das Anforderungsbuch beschreibt sie (Datenblatt in S.interfaces, je ID). Ohne Gruppen aus dem Schaltplan gilt die eigene Liste weiter. */
+function ifSp(){ const sp = spLesen(); return sp && Array.isArray(sp.interfaces) ? sp.interfaces : null; }
+function ifAlle(){ const g = ifSp(); if (!g) return S.interfaces || [];
+  return g.map(x => Object.assign({}, (S.interfaces || []).find(d => d.id === x.id) || {}, x, { ausSp:true })); }
+const ifVon = id => ifAlle().find(f => f.id === id);
 const ifListe = t => [...new Set(String(t || '').split(/[,;\s]+/).map(x => x.trim()).filter(Boolean))];
 function ifNeueId(){ let n = 1; const ids = new Set((S.interfaces || []).map(f => f.id)); while (ids.has('IF-' + String(n).padStart(3, '0'))) n++; return 'IF-' + String(n).padStart(3, '0'); }
 /* Signale je Grenze aus der Lesekopie des Schaltplans */
@@ -2713,9 +2718,11 @@ function ifVerwendung(id){
   return out;
 }
 function zInterfaces(){
-  const sig = ifSignale(), liste = S.interfaces || [], el = $('#ifListe');
+  const sig = ifSignale(), liste = ifAlle(), el = $('#ifListe'), sp = !!ifSp();
+  $('#ifNeu').style.display = sp ? 'none' : '';
   $$('[data-iff]').forEach(b => b.classList.toggle('an', b.dataset.iff === UI.ifFilter));
-  $('#ifQuelle').textContent = sig ? 'Signale aus dem Schaltplan' + (sig.stand ? ' · ' + fmtDatum(sig.stand) : '') : 'kein Schaltplan-Stand – erst die Wirkkettenanalyse';
+  $('#ifQuelle').textContent = sp ? 'Gruppen und Namen aus dem Schaltplan' + (sig && sig.stand ? ' · ' + fmtDatum(sig.stand) : '') + ' – hier beschreiben'
+    : sig ? 'Signale aus dem Schaltplan' + (sig.stand ? ' · ' + fmtDatum(sig.stand) : '') : 'kein Schaltplan-Stand – erst die Wirkkettenanalyse';
   /* Signale, die noch in keinem Interface stecken */
   const belegt = new Set(); liste.forEach(f => (f.signale || []).forEach(m => belegt.add(f.ebene + '|' + (f.ebene === 'cluster' ? f.cluster + '|' : '') + f.richtung + '|' + m)));
   const offen = [];
@@ -2728,7 +2735,7 @@ function zInterfaces(){
   const grenzName = (eb, ri, k) => (eb === 'system' ? 'Systemgrenze' : 'Cluster ' + k) + ' · ' + (ri === 'ein' ? 'Eingänge' : 'Ausgänge');
   $('#ifOffen').innerHTML = offen.length ? `<div class="if-offen"><b>Noch ohne Interface</b>${offen.map((o, i) => `<div class="zeile"><span class="tag">${esc(grenzName(o.ebene, o.richtung, o.cluster))}</span>
       <span class="if-chips">${o.l.slice(0, 12).map(x => `<span class="tag">${esc(x.m)}</span>`).join('')}${o.l.length > 12 ? `<span class="hinweis">+${o.l.length - 12}</span>` : ''}</span>
-      <button type="button" class="btn klein" data-if-aus="${i}" data-schreib>Interface bilden</button></div>`).join('')}</div>` : '';
+      ${sp ? '<span class="hinweis">im Schaltplan gruppieren (Reiter Schnittstellen)</span>' : `<button type="button" class="btn klein" data-if-aus="${i}" data-schreib>Interface bilden</button>`}</div>`).join('')}</div>` : '';
   $$('[data-if-aus]').forEach(b => b.onclick = () => { const o = offen[+b.dataset.ifAus]; ifDialog(null, { ebene:o.ebene, richtung:o.richtung, cluster:o.cluster, signale:o.l.map(x => x.m) }); });
   /* aktiver Auftrag: welche Interfaces er betrifft */
   const iidA = UI.auftrag, betr = new Set(); ((S.auftraege[iidA] || {}).reqs || []).forEach(r => (r.ifs || []).forEach(i => betr.add(i)));
@@ -2744,7 +2751,7 @@ function zInterfaces(){
     const weg = m => sig && !sig.alle.has(m);
     return `<div class="if-karte${betr.has(f.id) ? ' betr' : ''}">
       <div class="if-kopf"><span class="id">${esc(f.id)}</span><b>${esc(f.name)}</b>${betr.has(f.id) ? `<span class="tag geaendert">vom Auftrag ${esc(iidA)} betroffen</span>` : ''}
-        <button type="button" class="btn klein" data-if-edit="${esc(f.id)}" data-schreib>Bearbeiten</button></div>
+        <button type="button" class="btn klein" data-if-edit="${esc(f.id)}" data-schreib>${f.ausSp ? 'Beschreiben' : 'Bearbeiten'}</button></div>
       <div class="if-chips">${(f.signale || []).map(m => `<span class="tag${weg(m) ? ' weg' : ''}" title="${weg(m) ? 'nicht mehr in der Wirkkette' : ''}">${esc(m)}</span>`).join('')}</div>
       <div class="if-dat">${feld('Größe', [f.groesse, f.einheit && !bereich ? f.einheit : ''].filter(Boolean).join(' · '))}${feld('Bereich', bereich)}${feld('Auflösung', f.aufl)}
         ${feld('Raster', f.raster)}${feld('Latenz', f.latenz)}${feld('Gültigkeit', f.gueltig)}${feld('Ersatzwert', f.ersatz)}${feld('Diagnose', f.diagnose)}
@@ -2759,6 +2766,11 @@ function ifSperre(){ if (sperre) $$('[data-schreib]', $('#v-interfaces')).forEac
 function ifDialog(f, vor){
   const neu = !f, sig = ifSignale(); f = f || Object.assign({ id:'', name:'', ebene:'system', richtung:'ein', cluster:'', signale:[] }, vor || {});
   $('#ifDlgTitel').textContent = neu ? 'Neues Interface' : f.id + ' · ' + f.name;
+  /* Aus dem Schaltplan: Name, Grenze und Signale nur lesen – beschrieben wird hier */
+  const ausSp = !!f.ausSp;
+  ['#ifName', '#ifEbene', '#ifRichtung', '#ifCluster'].forEach(x => $(x).disabled = ausSp);
+  $('#ifSigFrei').hidden = ausSp;
+  $('#ifDlg header p').textContent = ausSp ? 'Gruppiert und benannt im Schaltplan – hier das Datenblatt' : 'Signale gleicher Physik und gleicher systemischer Anforderungen';
   $('#ifName').value = f.name || ''; $('#ifEbene').value = f.ebene; $('#ifRichtung').value = f.richtung;
   [['ifGroesse', 'groesse'], ['ifEinheit', 'einheit'], ['ifMin', 'min'], ['ifMax', 'max'], ['ifAufl', 'aufl'], ['ifRaster', 'raster'], ['ifLatenz', 'latenz'],
    ['ifGueltig', 'gueltig'], ['ifErsatz', 'ersatz'], ['ifDiagnose', 'diagnose'], ['ifQuelleF', 'quelle'], ['ifSenke', 'senke'], ['ifNotiz', 'notiz']].forEach(([i, k]) => $('#' + i).value = f[k] || '');
@@ -2779,7 +2791,7 @@ function ifDialog(f, vor){
         return `<label title="${esc(info)}"><input type="checkbox" value="${esc(x.m)}"${gewaehlt.has(x.m) ? ' checked' : ''}> ${esc(x.m)}${anderswo.has(x.m) ? ` <i>in ${esc(anderswo.get(x.m))}</i>` : ''}</label>`; }).join('') +
         extra.map(m => `<label title="nicht in der Wirkkette"><input type="checkbox" value="${esc(m)}" checked> ${esc(m)} <i>von Hand</i></label>`).join('')
       : `<span class="leer">${sig ? 'An dieser Grenze liefert die Wirkkette keine Signale.' : 'Kein Schaltplan-Stand – Signale unten von Hand eintragen.'}</span>`;
-    $$('#ifSignale input').forEach(c => c.onchange = () => { c.checked ? gewaehlt.add(c.value) : gewaehlt.delete(c.value); quelleSenke(); });
+    $$('#ifSignale input').forEach(c => { c.disabled = ausSp; c.onchange = () => { c.checked ? gewaehlt.add(c.value) : gewaehlt.delete(c.value); quelleSenke(); }; });
   };
   /* Quelle/Senke vorschlagen, solange leer */
   let vorQ = '', vorZ = '';
@@ -2792,7 +2804,7 @@ function ifDialog(f, vor){
   $('#ifSigFrei').value = '';
   sigZeigen(); quelleSenke();
   $('#ifFehler').textContent = '';
-  $('#ifLoeschen').hidden = neu;
+  $('#ifLoeschen').style.display = neu || ausSp ? 'none' : '';
   $('#ifLoeschen').onclick = () => { const v = ifVerwendung(f.id);
     if (v.length && !confirm(f.id + ' wird von ' + v.length + ' Anforderung(en) verwendet. Trotzdem löschen?')) return;
     S.interfaces = S.interfaces.filter(x => x.id !== f.id); $('#ifDlg').close(); speichern(); zeichnen(); toast(f.id + ' gelöscht'); };
@@ -2800,14 +2812,17 @@ function ifDialog(f, vor){
   $('#ifOk').onclick = ev => {
     const name = norm($('#ifName').value), signale = [...new Set([...gewaehlt, ...frei()])];
     if (!name) { ev.preventDefault(); $('#ifFehler').textContent = 'Bitte einen Namen angeben.'; return; }
-    if (!signale.length) { ev.preventDefault(); $('#ifFehler').textContent = 'Mindestens ein Signal wählen oder eintragen.'; return; }
+    if (!signale.length && !ausSp) { ev.preventDefault(); $('#ifFehler').textContent = 'Mindestens ein Signal wählen oder eintragen.'; return; }
     const eb = $('#ifEbene').value;
     const o = { id:neu ? ifNeueId() : f.id, name, ebene:eb, richtung:$('#ifRichtung').value, cluster:eb === 'cluster' ? $('#ifCluster').value : '', signale };
     [['ifGroesse', 'groesse'], ['ifEinheit', 'einheit'], ['ifMin', 'min'], ['ifMax', 'max'], ['ifAufl', 'aufl'], ['ifRaster', 'raster'], ['ifLatenz', 'latenz'],
      ['ifGueltig', 'gueltig'], ['ifErsatz', 'ersatz'], ['ifDiagnose', 'diagnose'], ['ifNotiz', 'notiz']].forEach(([i, k]) => { const v = norm($('#' + i).value); if (v) o[k] = v; });
     /* leer gelassen: Vorschlag aus der Wirkkette übernehmen */
     const qv = norm($('#ifQuelleF').value) || vorQ, zv = norm($('#ifSenke').value) || vorZ; if (qv) o.quelle = qv; if (zv) o.senke = zv;
-    if (neu) S.interfaces.push(o); else S.interfaces[S.interfaces.findIndex(x => x.id === f.id)] = o;
+    if (ausSp) { /* nur das Datenblatt gehört dem Anforderungsbuch */
+      ['name', 'ebene', 'richtung', 'cluster', 'signale'].forEach(k => delete o[k]); o.id = f.id;
+      const i = S.interfaces.findIndex(x => x.id === f.id); if (i >= 0) S.interfaces[i] = o; else S.interfaces.push(o);
+    } else if (neu) S.interfaces.push(o); else S.interfaces[S.interfaces.findIndex(x => x.id === f.id)] = o;
     speichern(); setTimeout(zeichnen, 0); toast(o.id + (neu ? ' angelegt' : ' gespeichert'));
   };
   $('#ifDlg').showModal(); setTimeout(() => $('#ifName').focus(), 30);
