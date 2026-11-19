@@ -489,7 +489,7 @@ dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
 </main>
 
 <div id="schubSchleier"></div>
-<aside id="schub" aria-label="Einzelheiten" aria-hidden="true">
+<aside id="schub" aria-label="Einzelheiten" aria-hidden="true" inert>
   <div class="sh-kopf"><h2 id="shId"></h2><button class="btn klein" id="shZu" type="button">Schließen</button></div>
   <div class="sh-inhalt" id="shInhalt"></div>
 </aside>
@@ -2237,9 +2237,9 @@ function schublade(st, r){
   $('#shId').textContent = r.id || 'ohne ID';
   $('#shInhalt').innerHTML = h; $('#shInhalt').scrollTop = 0;
   $$('[data-geh]', $('#shInhalt')).forEach(x => x.onclick = () => { const z = idx.get(x.dataset.geh); if (z) schublade(st, z); });
-  $('#schub').classList.add('auf'); $('#schubSchleier').classList.add('auf'); $('#schub').setAttribute('aria-hidden', 'false');
+  $('#schub').classList.add('auf'); $('#schubSchleier').classList.add('auf'); $('#schub').setAttribute('aria-hidden', 'false'); $('#schub').inert = false;
 }
-function schubZu(){ $('#schub').classList.remove('auf'); $('#schubSchleier').classList.remove('auf'); $('#schub').setAttribute('aria-hidden', 'true'); }
+function schubZu(){ $('#schub').classList.remove('auf'); $('#schubSchleier').classList.remove('auf'); $('#schub').setAttribute('aria-hidden', 'true'); $('#schub').inert = true; }
 
 /* ───────── Ausgabe ───────── */
 function herunterladen(name, inhalt, typ){
@@ -2948,6 +2948,7 @@ if (window.WBTor && WBTor.start) WBTor.start(boot); else boot();
       if (ak && ak.id && kp && Array.isArray(kp.auftraege)) au = kp.auftraege.filter(function(a){ return a.id === ak.id; })[0] || null;
       if (au && s.kp && au.schritte && au.schritte[s.kp]) st = au.schritte[s.kp].status || '';
       var w = WEITER[k] && S[WEITER[k]], f = FARBE[st];
+      el.setAttribute('aria-label', 'Prozessschritt ' + marke(s));
       var key = [k, ak && ak.id, ak && ak.titel, st, w && w.name].join('|'); if (key === letzt) return; letzt = key;
       var href = w && w.id && REPO[w.id] ? '../' + REPO[w.id] + '/' + (w.id === 'anforderungsbuch' && w.tab ? '#' + w.tab : '') : '';
       el.innerHTML =
